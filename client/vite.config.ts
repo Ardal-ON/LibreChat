@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+// @ts-ignore
 import path from 'path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vite';
@@ -7,19 +8,23 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
+const backendPort = process.env.BACKEND_PORT && Number(process.env.BACKEND_PORT) || 3080;
+const backendURL = process.env.HOST ? `http://${process.env.HOST}:${backendPort}` : `http://localhost:${backendPort}`;
+
 export default defineConfig(({ command }) => ({
   base: '',
   server: {
-    host: 'localhost',
-    port: 3090,
+    allowedHosts: process.env.VITE_ALLOWED_HOSTS && process.env.VITE_ALLOWED_HOSTS.split(',') || [],
+    host: process.env.HOST || 'localhost',
+    port: process.env.PORT && Number(process.env.PORT) || 3090,
     strictPort: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:3080',
+        target: backendURL,
         changeOrigin: true,
       },
       '/oauth': {
-        target: 'http://localhost:3080',
+        target: backendURL,
         changeOrigin: true,
       },
     },
@@ -105,6 +110,20 @@ export default defineConfig(({ command }) => ({
           const normalizedId = id.replace(/\\/g, '/');
           if (normalizedId.includes('node_modules')) {
             // High-impact chunking for large libraries
+
+            // IMPORTANT: mermaid and ALL its dependencies must be in the same chunk
+            // to avoid initialization order issues. This includes chevrotain, langium,
+            // dagre-d3-es, and their nested lodash-es dependencies.
+            if (
+              normalizedId.includes('mermaid') ||
+              normalizedId.includes('dagre-d3-es') ||
+              normalizedId.includes('chevrotain') ||
+              normalizedId.includes('langium') ||
+              normalizedId.includes('lodash-es')
+            ) {
+              return 'mermaid';
+            }
+
             if (normalizedId.includes('@codesandbox/sandpack')) {
               return 'sandpack';
             }
@@ -114,7 +133,8 @@ export default defineConfig(({ command }) => ({
             if (normalizedId.includes('i18next') || normalizedId.includes('react-i18next')) {
               return 'i18n';
             }
-            if (normalizedId.includes('lodash')) {
+            // Only regular lodash (not lodash-es which goes to mermaid chunk)
+            if (normalizedId.includes('/lodash/')) {
               return 'utilities';
             }
             if (normalizedId.includes('date-fns')) {
@@ -259,6 +279,7 @@ export default defineConfig(({ command }) => ({
 interface SourcemapExclude {
   excludeNodeModules?: boolean;
 }
+
 export function sourcemapExclude(opts?: SourcemapExclude): Plugin {
   return {
     name: 'sourcemap-exclude',

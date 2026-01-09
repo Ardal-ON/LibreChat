@@ -1,7 +1,7 @@
 import type { OpenAPIV3 } from 'openapi-types';
 import type { AssistantsEndpoint, AgentProvider } from 'src/schemas';
+import type { Agents, GraphEdge } from './agents';
 import type { ContentTypes } from './runs';
-import type { Agents } from './agents';
 import type { TFile } from './files';
 import { ArtifactModes } from 'src/artifacts';
 
@@ -166,6 +166,7 @@ export type AgentModelParameters = {
   top_p: AgentParameterValue;
   frequency_penalty: AgentParameterValue;
   presence_penalty: AgentParameterValue;
+  useResponsesApi?: boolean;
 };
 
 export interface AgentBaseResource {
@@ -229,7 +230,9 @@ export type Agent = {
   /** @deprecated Use ACL permissions instead */
   isCollaborative?: boolean;
   tool_resources?: AgentToolResources;
+  /** @deprecated Use edges instead */
   agent_ids?: string[];
+  edges?: GraphEdge[];
   end_after_tools?: boolean;
   hide_sequential_outputs?: boolean;
   artifacts?: ArtifactModes;
@@ -255,6 +258,7 @@ export type AgentCreateParams = {
 } & Pick<
   Agent,
   | 'agent_ids'
+  | 'edges'
   | 'end_after_tools'
   | 'hide_sequential_outputs'
   | 'artifacts'
@@ -280,6 +284,7 @@ export type AgentUpdateParams = {
 } & Pick<
   Agent,
   | 'agent_ids'
+  | 'edges'
   | 'end_after_tools'
   | 'hide_sequential_outputs'
   | 'artifacts'
@@ -462,7 +467,16 @@ export type PartMetadata = {
   action?: boolean;
   auth?: string;
   expires_at?: number;
+  /** Index indicating parallel sibling content (same stepIndex in multi-agent runs) */
+  siblingIndex?: number;
+  /** Agent ID for parallel agent rendering - identifies which agent produced this content */
+  agentId?: string;
+  /** Group ID for parallel content - parts with same groupId are displayed in columns */
+  groupId?: number;
 };
+
+/** Metadata for parallel content rendering - subset of PartMetadata */
+export type ContentMetadata = Pick<PartMetadata, 'agentId' | 'groupId'>;
 
 export type ContentPart = (
   | CodeToolCall
@@ -478,18 +492,18 @@ export type ContentPart = (
 export type TextData = (Text & PartMetadata) | undefined;
 
 export type TMessageContentParts =
-  | {
+  | ({
       type: ContentTypes.ERROR;
       text?: string | TextData;
       error?: string;
-    }
-  | { type: ContentTypes.THINK; think?: string | TextData }
-  | {
+    } & ContentMetadata)
+  | ({ type: ContentTypes.THINK; think?: string | TextData } & ContentMetadata)
+  | ({
       type: ContentTypes.TEXT;
       text?: string | TextData;
       tool_call_ids?: string[];
-    }
-  | {
+    } & ContentMetadata)
+  | ({
       type: ContentTypes.TOOL_CALL;
       tool_call: (
         | CodeToolCall
@@ -499,10 +513,12 @@ export type TMessageContentParts =
         | Agents.AgentToolCall
       ) &
         PartMetadata;
-    }
-  | { type: ContentTypes.IMAGE_FILE; image_file: ImageFile & PartMetadata }
-  | Agents.AgentUpdate
-  | Agents.MessageContentImageUrl;
+    } & ContentMetadata)
+  | ({ type: ContentTypes.IMAGE_FILE; image_file: ImageFile & PartMetadata } & ContentMetadata)
+  | (Agents.AgentUpdate & ContentMetadata)
+  | (Agents.MessageContentImageUrl & ContentMetadata)
+  | (Agents.MessageContentVideoUrl & ContentMetadata)
+  | (Agents.MessageContentInputAudio & ContentMetadata);
 
 export type StreamContentData = TMessageContentParts & {
   /** The index of the current content part */
