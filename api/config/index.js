@@ -1,9 +1,11 @@
 const { EventSource } = require('eventsource');
+const WebSocket = require('ws');
 const { Time } = require('librechat-data-provider');
 const { MCPManager, FlowStateManager, OAuthReconnectionManager } = require('@librechat/api');
 const logger = require('./winston');
 
 global.EventSource = EventSource;
+global.WebSocket = WebSocket;
 
 /** @type {MCPManager} */
 let flowManager = null;
