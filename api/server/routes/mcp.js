@@ -38,6 +38,7 @@ const {
   updateMCPServerController,
   deleteMCPServerController,
 } = require('~/server/controllers/mcp');
+const { mcpTokenRegistry } = require('~/server/services/MCPTokenRegistry');
 
 const router = Router();
 
@@ -47,6 +48,124 @@ const router = Router();
  */
 router.get('/tools', requireJwtAuth, async (req, res) => {
   return getMCPTools(req, res);
+});
+
+/**
+ * Register a token from Visual Paradigm Plugin
+ * @route POST /api/mcp/register-token
+ */
+router.post('/register-token', async (req, res) => {
+  try {
+    const { token, port, ttl } = req.body;
+    
+    // Validate request
+    if (!token || !port) {
+      return res.status(400).json({ error: 'Missing token or port' });
+    }
+
+    // Register token
+    const registeredToken = mcpTokenRegistry.registerToken({ 
+      token, 
+      port, 
+      ttl 
+    });
+
+    res.json({ 
+      success: true, 
+      token: registeredToken,
+      message: 'Token registered successfully'
+    });
+  } catch (error) {
+    logger.error('[MCP Register Token] Failed to register token', error);
+    res.status(500).json({ error: 'Failed to register token' });
+  }
+});
+
+/**
+ * Link Visual Paradigm Plugin via token
+ * @route GET /api/mcp/link
+ */
+router.get('/link', requireJwtAuth, async (req, res) => {
+  try {
+    const { token } = req.query;
+    const user = req.user;
+    
+    if (!token) {
+      return res.status(400).send('Missing token');
+    }
+
+    // Verify token exists and is valid
+    const tokenData = mcpTokenRegistry.getTokenData(token);
+    if (!tokenData) {
+      return res.status(404).send('Invalid or expired token');
+    }
+
+    // Create a new MCP server configuration for this user
+    // The server URL will point to the relay server with the token
+    // For local dev, we assume relay is on localhost:8080 (or configured via env)
+    const relayHost = process.env.RELAY_HOST || 'localhost';
+    const relayPort = process.env.RELAY_PORT || '8080';
+    const relayProtocol = process.env.RELAY_PROTOCOL || 'ws';
+    const relayUrl = `${relayProtocol}://${relayHost}:${relayPort}/mcp-proxy/${user.id}?token=${token}`;
+
+    const serverName = `VP-PlantUML-${user.id.substring(0, 6)}`;
+    
+    // Dynamically add the MCP server configuration for the user
+    const config = {
+      type: 'websocket',
+      url: relayUrl,
+      title: 'Visual Paradigm Plugin',
+      description: 'Connected via Relay',
+    };
+
+    try {
+      await getMCPServersRegistry().addServer(
+        serverName,
+        config,
+        'DB',
+        user.id
+      );
+      logger.info(`[MCP Link] Added MCP server '${serverName}' for user ${user.id}`);
+    } catch (err) {
+      logger.error(`[MCP Link] Failed to add MCP server '${serverName}'`, err);
+      // If it fails (e.g. exists), we might want to update it or ignore
+      // For now, proceed to redirect
+    }
+
+    res.redirect(`/?mcpLinkSuccess=true&serverName=${encodeURIComponent(serverName)}&token=${encodeURIComponent(token)}`);
+    
+  } catch (error) {
+    logger.error('[MCP Link] Failed to link token', error);
+    res.status(500).send('Failed to link token');
+  }
+});
+
+/**
+ * Validate token (Internal use by Relay)
+ * @route GET /api/mcp/validate-token/:token
+ */
+router.get('/validate-token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { secret } = req.query; // Simple shared secret for now
+    
+    // In production, use a strong shared secret env var
+    const internalSecret = process.env.MCP_RELAY_SECRET || 'dev-secret';
+    
+    if (secret !== internalSecret) {
+      return res.status(403).json({ valid: false, error: 'Unauthorized' });
+    }
+
+    const tokenData = mcpTokenRegistry.getTokenData(token);
+    if (!tokenData) {
+      return res.status(404).json({ valid: false });
+    }
+
+    res.json({ valid: true, ...tokenData });
+  } catch (error) {
+    logger.error('[MCP Validate Token] Failed to validate token', error);
+    res.status(500).json({ valid: false, error: 'Internal error' });
+  }
 });
 
 /**
