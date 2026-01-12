@@ -1,4 +1,7 @@
 const { Router } = require('express');
+const passport = require('passport');
+const cookies = require('cookie');
+const jwt = require('jsonwebtoken');
 const { logger } = require('@librechat/data-schemas');
 const {
   CacheKeys,
@@ -14,6 +17,7 @@ const {
   getBasePath,
   getUserMCPAuthMap,
   generateCheckAccess,
+  isEnabled,
 } = require('@librechat/api');
 const {
   getMCPManager,
@@ -23,7 +27,7 @@ const {
 } = require('~/config');
 const { getMCPSetupData, getServerConnectionStatus } = require('~/server/services/MCP');
 const { requireJwtAuth, canAccessMCPServerResource } = require('~/server/middleware');
-const { findToken, updateToken, createToken, deleteTokens } = require('~/models');
+const { findToken, updateToken, createToken, deleteTokens, getUserById } = require('~/models');
 const { getUserPluginAuthValue } = require('~/server/services/PluginService');
 const { updateMCPServerTools } = require('~/server/services/Config/mcp');
 const { reinitMCPServer } = require('~/server/services/Tools/mcp');
@@ -82,10 +86,58 @@ router.post('/register-token', async (req, res) => {
 });
 
 /**
+ * Custom Middleware to handle JWT authentication with redirect support
+ */
+const requireJwtAuthOrRedirect = (req, res, next) => {
+  const cookieHeader = req.headers.cookie;
+  const tokenProvider = cookieHeader ? cookies.parse(cookieHeader).token_provider : null;
+
+  const strategy = (tokenProvider === 'openid' && isEnabled(process.env.OPENID_REUSE_TOKENS)) 
+    ? 'openidJwt' 
+    : 'jwt';
+
+  passport.authenticate(strategy, { session: false }, async (err, user, info) => {
+    if (user) {
+      req.user = user;
+      return next();
+    }
+
+    // Fallback: Check for refresh token in cookies
+    // This allows browser requests (which lack Authorization header) to authenticate via cookie
+    const cookieHeader = req.headers.cookie;
+    const parsedCookies = cookieHeader ? cookies.parse(cookieHeader) : {};
+    const refreshToken = parsedCookies.refreshToken;
+
+    if (refreshToken) {
+      try {
+        const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        const userFromRefresh = await getUserById(payload.id, '-password -__v -totpSecret -backupCodes');
+        
+        if (userFromRefresh) {
+          req.user = userFromRefresh;
+          req.user.id = userFromRefresh._id.toString();
+          logger.debug('[MCP Link] Authenticated via refresh token cookie');
+          return next();
+        }
+      } catch (refreshErr) {
+        logger.debug('[MCP Link] Refresh token verification failed', refreshErr);
+      }
+    }
+
+    if (err || !user) {
+      const redirectUrl = encodeURIComponent(req.originalUrl);
+      return res.redirect(`/login?redirect=${redirectUrl}`);
+    }
+    req.user = user;
+    next();
+  })(req, res, next);
+};
+
+/**
  * Link Visual Paradigm Plugin via token
  * @route GET /api/mcp/link
  */
-router.get('/link', requireJwtAuth, async (req, res) => {
+router.get('/link', requireJwtAuthOrRedirect, async (req, res) => {
   try {
     const { token } = req.query;
     const user = req.user;
@@ -119,15 +171,27 @@ router.get('/link', requireJwtAuth, async (req, res) => {
     };
 
     try {
-      await getMCPServersRegistry().addServer(
-        serverName,
-        config,
-        'DB',
-        user.id
-      );
-      logger.info(`[MCP Link] Added MCP server '${serverName}' for user ${user.id}`);
+      const existingConfig = await getMCPServersRegistry().getServerConfig(serverName, user.id);
+
+      if (existingConfig) {
+        await getMCPServersRegistry().updateServer(
+          serverName,
+          config,
+          'DB',
+          user.id
+        );
+        logger.info(`[MCP Link] Updated MCP server '${serverName}' for user ${user.id}`);
+      } else {
+        await getMCPServersRegistry().addServer(
+          serverName,
+          config,
+          'DB',
+          user.id
+        );
+        logger.info(`[MCP Link] Added MCP server '${serverName}' for user ${user.id}`);
+      }
     } catch (err) {
-      logger.error(`[MCP Link] Failed to add MCP server '${serverName}'`, err);
+      logger.error(`[MCP Link] Failed to add/update MCP server '${serverName}'`, err);
       // If it fails (e.g. exists), we might want to update it or ignore
       // For now, proceed to redirect
     }
