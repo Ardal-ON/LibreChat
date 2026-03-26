@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { ZodError } from 'zod';
 import type { TEndpointsConfig, TModelsConfig, TConfig } from './types';
-import { EModelEndpoint, eModelEndpointSchema } from './schemas';
+import { EModelEndpoint, eModelEndpointSchema, isAgentsEndpoint } from './schemas';
 import { specsConfigSchema, TSpecsConfig } from './models';
 import { fileConfigSchema } from './file-config';
 import { apiBaseUrl } from './api-endpoints';
@@ -122,7 +122,6 @@ export const azureBaseSchema = z.object({
   assistants: z.boolean().optional(),
   addParams: z.record(z.any()).optional(),
   dropParams: z.array(z.string()).optional(),
-  forcePrompt: z.boolean().optional(),
   version: z.string().optional(),
   baseURL: z.string().optional(),
   additionalHeaders: z.record(z.any()).optional(),
@@ -176,7 +175,9 @@ export enum Capabilities {
 
 export enum AgentCapabilities {
   hide_sequential_outputs = 'hide_sequential_outputs',
+  programmatic_tools = 'programmatic_tools',
   end_after_tools = 'end_after_tools',
+  deferred_tools = 'deferred_tools',
   execute_code = 'execute_code',
   file_search = 'file_search',
   web_search = 'web_search',
@@ -204,6 +205,8 @@ export const baseEndpointSchema = z.object({
     .optional(),
   titleEndpoint: z.string().optional(),
   titlePromptTemplate: z.string().optional(),
+  /** Maximum characters allowed in a single tool result before truncation. */
+  maxToolResultChars: z.number().positive().optional(),
 });
 
 export type TBaseEndpoint = z.infer<typeof baseEndpointSchema>;
@@ -211,6 +214,8 @@ export type TBaseEndpoint = z.infer<typeof baseEndpointSchema>;
 export const bedrockEndpointSchema = baseEndpointSchema.merge(
   z.object({
     availableRegions: z.array(z.string()).optional(),
+    models: z.array(z.string()).optional(),
+    inferenceProfiles: z.record(z.string(), z.string()).optional(),
   }),
 );
 
@@ -259,6 +264,9 @@ export const assistantEndpointSchema = baseEndpointSchema.merge(
 export type TAssistantEndpoint = z.infer<typeof assistantEndpointSchema>;
 
 export const defaultAgentCapabilities = [
+  // Commented as requires latest Code Interpreter API
+  // AgentCapabilities.programmatic_tools,
+  AgentCapabilities.deferred_tools,
   AgentCapabilities.execute_code,
   AgentCapabilities.file_search,
   AgentCapabilities.web_search,
@@ -314,7 +322,6 @@ export const endpointSchema = baseEndpointSchema.merge(
     summarize: z.boolean().optional(),
     summaryModel: z.string().optional(),
     iconURL: z.string().optional(),
-    forcePrompt: z.boolean().optional(),
     modelDisplayLabel: z.string().optional(),
     headers: z.record(z.any()).optional(),
     addParams: z.record(z.any()).optional(),
@@ -587,6 +594,7 @@ const mcpServersSchema = z
     use: z.boolean().optional(),
     create: z.boolean().optional(),
     share: z.boolean().optional(),
+    public: z.boolean().optional(),
     trustCheckbox: z
       .object({
         label: localizedStringSchema.optional(),
@@ -617,8 +625,28 @@ export const interfaceSchema = z
     bookmarks: z.boolean().optional(),
     memories: z.boolean().optional(),
     presets: z.boolean().optional(),
-    prompts: z.boolean().optional(),
-    agents: z.boolean().optional(),
+    prompts: z
+      .union([
+        z.boolean(),
+        z.object({
+          use: z.boolean().optional(),
+          create: z.boolean().optional(),
+          share: z.boolean().optional(),
+          public: z.boolean().optional(),
+        }),
+      ])
+      .optional(),
+    agents: z
+      .union([
+        z.boolean(),
+        z.object({
+          use: z.boolean().optional(),
+          create: z.boolean().optional(),
+          share: z.boolean().optional(),
+          public: z.boolean().optional(),
+        }),
+      ])
+      .optional(),
     temporaryChat: z.boolean().optional(),
     temporaryChatRetention: z.number().min(1).max(8760).optional(),
     runCode: z.boolean().optional(),
@@ -637,6 +665,14 @@ export const interfaceSchema = z
       .optional(),
     fileSearch: z.boolean().optional(),
     fileCitations: z.boolean().optional(),
+    remoteAgents: z
+      .object({
+        use: z.boolean().optional(),
+        create: z.boolean().optional(),
+        share: z.boolean().optional(),
+        public: z.boolean().optional(),
+      })
+      .optional(),
   })
   .default({
     endpointsMenu: true,
@@ -647,8 +683,18 @@ export const interfaceSchema = z
     multiConvo: true,
     bookmarks: true,
     memories: true,
-    prompts: true,
-    agents: true,
+    prompts: {
+      use: true,
+      create: true,
+      share: false,
+      public: false,
+    },
+    agents: {
+      use: true,
+      create: true,
+      share: false,
+      public: false,
+    },
     temporaryChat: true,
     runCode: true,
     webSearch: true,
@@ -664,9 +710,16 @@ export const interfaceSchema = z
       use: true,
       create: true,
       share: false,
+      public: false,
     },
     fileSearch: true,
     fileCitations: true,
+    remoteAgents: {
+      use: false,
+      create: false,
+      share: false,
+      public: false,
+    },
   });
 
 export type TInterfaceConfig = z.infer<typeof interfaceSchema>;
@@ -730,7 +783,6 @@ export type TStartupConfig = {
   sharedLinksEnabled: boolean;
   publicSharedLinksEnabled: boolean;
   analyticsGtmId?: string;
-  instanceProjectId: string;
   bundlerURL?: string;
   staticBundlerURL?: string;
   sharePointFilePickerEnabled?: boolean;
@@ -769,6 +821,7 @@ export enum OCRStrategy {
   CUSTOM_OCR = 'custom_ocr',
   AZURE_MISTRAL_OCR = 'azure_mistral_ocr',
   VERTEXAI_MISTRAL_OCR = 'vertexai_mistral_ocr',
+  DOCUMENT_PARSER = 'document_parser',
 }
 
 export enum SearchCategories {
@@ -897,6 +950,34 @@ export const memorySchema = z.object({
 
 export type TMemoryConfig = DeepPartial<z.infer<typeof memorySchema>>;
 
+export const summarizationTriggerSchema = z.object({
+  type: z.enum(['token_count']),
+  value: z.number().positive(),
+});
+
+export const contextPruningSchema = z.object({
+  enabled: z.boolean().optional(),
+  keepLastAssistants: z.number().min(0).max(10).optional(),
+  softTrimRatio: z.number().min(0).max(1).optional(),
+  hardClearRatio: z.number().min(0).max(1).optional(),
+  minPrunableToolChars: z.number().min(0).optional(),
+});
+
+export const summarizationConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  parameters: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+  trigger: summarizationTriggerSchema.optional(),
+  prompt: z.string().optional(),
+  updatePrompt: z.string().optional(),
+  reserveRatio: z.number().min(0).max(1).optional(),
+  maxSummaryTokens: z.number().positive().optional(),
+  contextPruning: contextPruningSchema.optional(),
+});
+
+export type SummarizationConfig = z.infer<typeof summarizationConfigSchema>;
+
 const customEndpointsSchema = z.array(endpointSchema.partial()).optional();
 
 export const configSchema = z.object({
@@ -905,6 +986,7 @@ export const configSchema = z.object({
   ocr: ocrSchema.optional(),
   webSearch: webSearchSchema.optional(),
   memory: memorySchema.optional(),
+  summarization: summarizationConfigSchema.optional(),
   secureImageLinks: z.boolean().optional(),
   imageOutputType: z.nativeEnum(EImageOutputType).default(EImageOutputType.PNG),
   includedTools: z.array(z.string()).optional(),
@@ -953,7 +1035,7 @@ export const configSchema = z.object({
       [EModelEndpoint.assistants]: assistantEndpointSchema.optional(),
       [EModelEndpoint.agents]: agentsEndpointSchema.optional(),
       [EModelEndpoint.custom]: customEndpointsSchema.optional(),
-      [EModelEndpoint.bedrock]: baseEndpointSchema.optional(),
+      [EModelEndpoint.bedrock]: bedrockEndpointSchema.optional(),
     })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {
@@ -997,6 +1079,7 @@ export enum KnownEndpoints {
   cohere = 'cohere',
   fireworks = 'fireworks',
   deepseek = 'deepseek',
+  moonshot = 'moonshot',
   groq = 'groq',
   helicone = 'helicone',
   huggingface = 'huggingface',
@@ -1041,12 +1124,17 @@ export const alternateName = {
   [EModelEndpoint.bedrock]: 'AWS Bedrock',
   [KnownEndpoints.ollama]: 'Ollama',
   [KnownEndpoints.deepseek]: 'DeepSeek',
+  [KnownEndpoints.moonshot]: 'Moonshot',
   [KnownEndpoints.xai]: 'xAI',
   [KnownEndpoints.vercel]: 'Vercel',
   [KnownEndpoints.helicone]: 'Helicone',
 };
 
 const sharedOpenAIModels = [
+  'gpt-5.4',
+  // TODO: gpt-5.4-thinking may have separate reasoning token pricing — verify before release
+  'gpt-5.4-thinking',
+  'gpt-5.4-pro',
   'gpt-5.1',
   'gpt-5.1-chat-latest',
   'gpt-5.1-codex',
@@ -1080,6 +1168,8 @@ const sharedOpenAIModels = [
 ];
 
 const sharedAnthropicModels = [
+  'claude-sonnet-4-6',
+  'claude-opus-4-6',
   'claude-sonnet-4-5',
   'claude-sonnet-4-5-20250929',
   'claude-haiku-4-5',
@@ -1097,31 +1187,17 @@ const sharedAnthropicModels = [
   'claude-3-5-sonnet-20241022',
   'claude-3-5-sonnet-20240620',
   'claude-3-5-sonnet-latest',
-  'claude-3-opus-20240229',
-  'claude-3-sonnet-20240229',
-  'claude-3-haiku-20240307',
-  'claude-2.1',
-  'claude-2',
-  'claude-1.2',
-  'claude-1',
-  'claude-1-100k',
-  'claude-instant-1',
-  'claude-instant-1-100k',
 ];
 
 export const bedrockModels = [
+  'anthropic.claude-sonnet-4-6',
+  'anthropic.claude-opus-4-6-v1',
   'anthropic.claude-sonnet-4-5-20250929-v1:0',
   'anthropic.claude-haiku-4-5-20251001-v1:0',
   'anthropic.claude-opus-4-1-20250805-v1:0',
   'anthropic.claude-3-5-sonnet-20241022-v2:0',
   'anthropic.claude-3-5-sonnet-20240620-v1:0',
   'anthropic.claude-3-5-haiku-20241022-v1:0',
-  'anthropic.claude-3-haiku-20240307-v1:0',
-  'anthropic.claude-3-opus-20240229-v1:0',
-  'anthropic.claude-3-sonnet-20240229-v1:0',
-  'anthropic.claude-v2',
-  'anthropic.claude-v2:1',
-  'anthropic.claude-instant-v1',
   // 'cohere.command-text-v14', // no conversation history
   // 'cohere.command-light-text-v14', // no conversation history
   'cohere.command-r-v1:0',
@@ -1151,6 +1227,13 @@ export const defaultModels = {
   [EModelEndpoint.assistants]: [...sharedOpenAIModels, 'chatgpt-4o-latest'],
   [EModelEndpoint.agents]: sharedOpenAIModels, // TODO: Add agent models (agentsModels)
   [EModelEndpoint.google]: [
+    // Gemini 3.1 Models
+    'gemini-3.1-pro-preview',
+    'gemini-3.1-pro-preview-customtools',
+    'gemini-3.1-flash-lite-preview',
+    // Gemini 3 Models
+    'gemini-3-pro-preview',
+    'gemini-3-flash-preview',
     // Gemini 2.5 Models
     'gemini-2.5-pro',
     'gemini-2.5-flash',
@@ -1227,6 +1310,7 @@ export const visionModels = [
   'o4-mini',
   'o3',
   'o1',
+  'gpt-5',
   'gpt-4.1',
   'gpt-4.5',
   'llava',
@@ -1326,6 +1410,10 @@ export enum CacheKeys {
    */
   CONFIG_STORE = 'CONFIG_STORE',
   /**
+   * Key for the tool cache namespace (plugins, MCP tools, tool definitions).
+   */
+  TOOL_CACHE = 'TOOL_CACHE',
+  /**
    * Key for the roles cache.
    */
   ROLES = 'ROLES',
@@ -1406,6 +1494,10 @@ export enum CacheKeys {
    * Key for SAML session.
    */
   SAML_SESSION = 'SAML_SESSION',
+  /**
+   * Key for admin panel OAuth exchange codes (one-time-use, short TTL).
+   */
+  ADMIN_OAUTH_EXCHANGE = 'ADMIN_OAUTH_EXCHANGE',
 }
 
 /**
@@ -1499,6 +1591,10 @@ export enum ErrorTypes {
    */
   NO_BASE_URL = 'no_base_url',
   /**
+   * Base URL targets a restricted or invalid address (SSRF protection).
+   */
+  INVALID_BASE_URL = 'invalid_base_url',
+  /**
    * Moderation error
    */
   MODERATION = 'moderation',
@@ -1550,6 +1646,10 @@ export enum ErrorTypes {
    * Model refused to respond (content policy violation)
    */
   REFUSAL = 'refusal',
+  /**
+   * SSE stream 404 — job completed, expired, or was deleted before the subscriber connected
+   */
+  STREAM_EXPIRED = 'stream_expired',
 }
 
 /**
@@ -1674,9 +1774,9 @@ export enum TTSProviders {
 /** Enum for app-wide constants */
 export enum Constants {
   /** Key for the app's version. */
-  VERSION = 'v0.8.2-rc2',
+  VERSION = 'v0.8.4',
   /** Key for the Custom Config's version (librechat.yaml). */
-  CONFIG_VERSION = '1.3.1',
+  CONFIG_VERSION = '1.3.6',
   /** Standard value for the first message's `parentMessageId` value, to indicate no parent exists. */
   NO_PARENT = '00000000-0000-0000-0000-000000000000',
   /** Standard value to use whatever the submission prelim. `responseMessageId` is */
@@ -1701,8 +1801,6 @@ export enum Constants {
   SAVED_TAG = 'Saved',
   /** Max number of Conversation starters for Agents/Assistants */
   MAX_CONVO_STARTERS = 4,
-  /** Global/instance Project Name */
-  GLOBAL_PROJECT_NAME = 'instance',
   /** Delimiter for MCP tools */
   mcp_delimiter = '_mcp_',
   /** Prefix for MCP plugins */
@@ -1711,6 +1809,8 @@ export enum Constants {
   mcp_all = 'sys__all__sys',
   /** Unique value to indicate clearing MCP servers from UI state. For frontend use only. */
   mcp_clear = 'sys__clear__sys',
+  /** Key suffix for non-spec user default tool storage */
+  spec_defaults_key = '__defaults__',
   /**
    * Unique value to indicate the MCP tool was added to an agent.
    * This helps inform the UI if the mcp server was previously added.
@@ -1722,6 +1822,8 @@ export enum Constants {
   LC_TRANSFER_TO_ = 'lc_transfer_to_',
   /** Placeholder Agent ID for Ephemeral Agents */
   EPHEMERAL_AGENT_ID = 'ephemeral',
+  /** Programmatic Tool Calling tool name */
+  PROGRAMMATIC_TOOL_CALLING = 'run_tools_with_code',
 }
 
 export enum LocalStorageKeys {
@@ -1755,8 +1857,8 @@ export enum LocalStorageKeys {
   LAST_PROMPT_CATEGORY = 'lastPromptCategory',
   /** Key for rendering User Messages as Markdown */
   ENABLE_USER_MSG_MARKDOWN = 'enableUserMsgMarkdown',
-  /** Key for displaying analysis tool code input */
-  SHOW_ANALYSIS_CODE = 'showAnalysisCode',
+  /** Key for auto-expanding tool call details */
+  AUTO_EXPAND_TOOLS = 'autoExpandTools',
   /** Last selected MCP values per conversation ID */
   LAST_MCP_ = 'LAST_MCP_',
   /** Last checked toggle for Code Interpreter API per conversation ID */
@@ -1858,4 +1960,47 @@ export function getEndpointField<
     return undefined;
   }
   return config[property];
+}
+
+/**
+ * Resolves the effective endpoint type:
+ * - Non-agents endpoint: config.type || endpoint
+ * - Agents + provider: config[provider].type || provider
+ * - Agents, no provider: EModelEndpoint.agents
+ *
+ * Returns `undefined` when endpoint is null/undefined.
+ */
+export function resolveEndpointType(
+  endpointsConfig: TEndpointsConfig | undefined | null,
+  endpoint: string | null | undefined,
+  agentProvider?: string | null,
+): EModelEndpoint | string | undefined {
+  if (!endpoint) {
+    return undefined;
+  }
+
+  if (!isAgentsEndpoint(endpoint)) {
+    return getEndpointField(endpointsConfig, endpoint, 'type') || endpoint;
+  }
+
+  if (agentProvider) {
+    const providerType = getEndpointField(endpointsConfig, agentProvider, 'type');
+    if (providerType) {
+      return providerType;
+    }
+    return agentProvider;
+  }
+
+  return EModelEndpoint.agents;
+}
+
+/** Resolves the `defaultParamsEndpoint` for a given endpoint from its custom params config */
+export function getDefaultParamsEndpoint(
+  endpointsConfig: TEndpointsConfig | undefined | null,
+  endpoint: string | null | undefined,
+): string | undefined {
+  if (!endpointsConfig || !endpoint) {
+    return undefined;
+  }
+  return endpointsConfig[endpoint]?.customParams?.defaultParamsEndpoint;
 }

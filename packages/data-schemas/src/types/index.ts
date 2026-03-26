@@ -8,8 +8,10 @@ export * from './convo';
 export * from './session';
 export * from './balance';
 export * from './banner';
+export * from './transaction';
 export * from './message';
 export * from './agent';
+export * from './agentApiKey';
 export * from './agentCategory';
 export * from './role';
 export * from './action';
@@ -24,6 +26,7 @@ export * from './prompts';
 /* Access Control */
 export * from './accessRole';
 export * from './aclEntry';
+export * from './systemGrant';
 export * from './group';
 /* Web */
 export * from './web';

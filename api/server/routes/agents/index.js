@@ -9,12 +9,29 @@ const {
   configMiddleware,
   messageUserLimiter,
 } = require('~/server/middleware');
+const { saveMessage } = require('~/models');
+const responses = require('./responses');
+const openai = require('./openai');
 const { v1 } = require('./v1');
 const chat = require('./chat');
 
 const { LIMIT_MESSAGE_IP, LIMIT_MESSAGE_USER } = process.env ?? {};
 
 const router = express.Router();
+
+/**
+ * Open Responses API routes (API key authentication handled in route file)
+ * Mounted at /agents/v1/responses (full path: /api/agents/v1/responses)
+ * NOTE: Must be mounted BEFORE /v1 to avoid being caught by the less specific route
+ * @see https://openresponses.org/specification
+ */
+router.use('/v1/responses', responses);
+
+/**
+ * OpenAI-compatible API routes (API key authentication handled in route file)
+ * Mounted at /agents/v1 (full path: /api/agents/v1/chat/completions)
+ */
+router.use('/v1', openai);
 
 router.use(requireJwtAuth);
 router.use(checkBan);
@@ -46,6 +63,10 @@ router.get('/chat/stream/:streamId', async (req, res) => {
     });
   }
 
+  if (job.metadata?.userId && job.metadata.userId !== req.user.id) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
   res.setHeader('Content-Encoding', 'identity');
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -55,52 +76,62 @@ router.get('/chat/stream/:streamId', async (req, res) => {
 
   logger.debug(`[AgentStream] Client subscribed to ${streamId}, resume: ${isResume}`);
 
-  // Send sync event with resume state for ALL reconnecting clients
-  // This supports multi-tab scenarios where each tab needs run step data
-  if (isResume) {
-    const resumeState = await GenerationJobManager.getResumeState(streamId);
-    if (resumeState && !res.writableEnded) {
-      // Send sync event with run steps AND aggregatedContent
-      // Client will use aggregatedContent to initialize message state
-      res.write(`event: message\ndata: ${JSON.stringify({ sync: true, resumeState })}\n\n`);
+  const writeEvent = (event) => {
+    if (!res.writableEnded) {
+      res.write(`event: message\ndata: ${JSON.stringify(event)}\n\n`);
       if (typeof res.flush === 'function') {
         res.flush();
       }
-      logger.debug(
-        `[AgentStream] Sent sync event for ${streamId} with ${resumeState.runSteps.length} run steps`,
-      );
     }
-  }
+  };
 
-  const result = await GenerationJobManager.subscribe(
-    streamId,
-    (event) => {
-      if (!res.writableEnded) {
-        res.write(`event: message\ndata: ${JSON.stringify(event)}\n\n`);
+  const onDone = (event) => {
+    writeEvent(event);
+    res.end();
+  };
+
+  const onError = (error) => {
+    if (!res.writableEnded) {
+      res.write(`event: error\ndata: ${JSON.stringify({ error })}\n\n`);
+      if (typeof res.flush === 'function') {
+        res.flush();
+      }
+      res.end();
+    }
+  };
+
+  let result;
+
+  if (isResume) {
+    const { subscription, resumeState, pendingEvents } =
+      await GenerationJobManager.subscribeWithResume(streamId, writeEvent, onDone, onError);
+
+    if (!res.writableEnded) {
+      if (resumeState) {
+        res.write(
+          `event: message\ndata: ${JSON.stringify({ sync: true, resumeState, pendingEvents })}\n\n`,
+        );
         if (typeof res.flush === 'function') {
           res.flush();
         }
-      }
-    },
-    (event) => {
-      if (!res.writableEnded) {
-        res.write(`event: message\ndata: ${JSON.stringify(event)}\n\n`);
-        if (typeof res.flush === 'function') {
-          res.flush();
+        GenerationJobManager.markSyncSent(streamId);
+        logger.debug(
+          `[AgentStream] Sent sync event for ${streamId} with ${resumeState.runSteps.length} run steps, ${pendingEvents.length} pending events`,
+        );
+      } else if (pendingEvents.length > 0) {
+        for (const event of pendingEvents) {
+          writeEvent(event);
         }
-        res.end();
+        logger.warn(
+          `[AgentStream] Resume state null for ${streamId}, replayed ${pendingEvents.length} gap events directly`,
+        );
       }
-    },
-    (error) => {
-      if (!res.writableEnded) {
-        res.write(`event: error\ndata: ${JSON.stringify({ error })}\n\n`);
-        if (typeof res.flush === 'function') {
-          res.flush();
-        }
-        res.end();
-      }
-    },
-  );
+    }
+
+    result = subscription;
+  } else {
+    result = await GenerationJobManager.subscribe(streamId, writeEvent, onDone, onError);
+  }
 
   if (!result) {
     return res.status(404).json({ error: 'Failed to subscribe to stream' });
@@ -194,9 +225,59 @@ router.post('/chat/abort', async (req, res) => {
   logger.debug(`[AgentStream] Computed jobStreamId: ${jobStreamId}`);
 
   if (job && jobStreamId) {
+    if (job.metadata?.userId && job.metadata.userId !== userId) {
+      logger.warn(`[AgentStream] Unauthorized abort attempt for ${jobStreamId} by user ${userId}`);
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
     logger.debug(`[AgentStream] Job found, aborting: ${jobStreamId}`);
-    await GenerationJobManager.abortJob(jobStreamId);
-    logger.debug(`[AgentStream] Job aborted successfully: ${jobStreamId}`);
+    const abortResult = await GenerationJobManager.abortJob(jobStreamId);
+    logger.debug(`[AgentStream] Job aborted successfully: ${jobStreamId}`, {
+      abortResultSuccess: abortResult.success,
+      abortResultUserMessageId: abortResult.jobData?.userMessage?.messageId,
+      abortResultResponseMessageId: abortResult.jobData?.responseMessageId,
+    });
+
+    // CRITICAL: Save partial response BEFORE returning to prevent race condition.
+    // If user sends a follow-up immediately after abort, the parentMessageId must exist in DB.
+    // Only save if we have a valid responseMessageId (skip early aborts before generation started)
+    if (
+      abortResult.success &&
+      abortResult.jobData?.userMessage?.messageId &&
+      abortResult.jobData?.responseMessageId
+    ) {
+      const { jobData, content, text } = abortResult;
+      const responseMessage = {
+        messageId: jobData.responseMessageId,
+        parentMessageId: jobData.userMessage.messageId,
+        conversationId: jobData.conversationId,
+        content: content || [],
+        text: text || '',
+        sender: jobData.sender || 'AI',
+        endpoint: jobData.endpoint,
+        model: jobData.model,
+        unfinished: true,
+        error: false,
+        isCreatedByUser: false,
+        user: userId,
+      };
+
+      try {
+        await saveMessage(
+          {
+            userId: req?.user?.id,
+            isTemporary: req?.body?.isTemporary,
+            interfaceConfig: req?.config?.interfaceConfig,
+          },
+          responseMessage,
+          { context: 'api/server/routes/agents/index.js - abort endpoint' },
+        );
+        logger.debug(`[AgentStream] Saved partial response for: ${jobStreamId}`);
+      } catch (saveError) {
+        logger.error(`[AgentStream] Failed to save partial response: ${saveError.message}`);
+      }
+    }
+
     return res.json({ success: true, aborted: jobStreamId });
   }
 

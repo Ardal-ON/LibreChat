@@ -76,10 +76,6 @@ const agentSchema = new Schema<IAgent>(
       type: [{ type: Schema.Types.Mixed }],
       default: [],
     },
-    isCollaborative: {
-      type: Boolean,
-      default: undefined,
-    },
     conversation_starters: {
       type: [String],
       default: [],
@@ -87,11 +83,6 @@ const agentSchema = new Schema<IAgent>(
     tool_resources: {
       type: Schema.Types.Mixed,
       default: {},
-    },
-    projectIds: {
-      type: [Schema.Types.ObjectId],
-      ref: 'Project',
-      index: true,
     },
     versions: {
       type: [Schema.Types.Mixed],
@@ -116,6 +107,15 @@ const agentSchema = new Schema<IAgent>(
     mcpServerNames: {
       type: [String],
       default: [],
+      index: true,
+    },
+    /** Per-tool configuration (defer_loading, allowed_callers) */
+    tool_options: {
+      type: Schema.Types.Mixed,
+      default: undefined,
+    },
+    tenantId: {
+      type: String,
       index: true,
     },
   },
