@@ -1,0 +1,12 @@
+# Override for local Semaa + Visual Paradigm MCP testing.
+# Must live next to deploy-compose.yml so build context is this directory (not .../LibreChat/LibreChat).
+#
+#   docker compose -f deploy-compose.yml -f docker-compose.semaa-local.yml up -d --build
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.multi
+      target: api-build
+    image: librechat-semaa-api:local
