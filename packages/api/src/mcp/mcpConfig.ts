@@ -5,6 +5,8 @@ import { math, isEnabled } from '~/utils';
  * Provides typed access to MCP settings with default values.
  */
 export const mcpConfig = {
+  /** Allow private/reserved IP WS targets for trusted local dev setups. */
+  ALLOW_PRIVATE_WS: isEnabled(process.env.MCP_ALLOW_PRIVATE_WS ?? false),
   OAUTH_ON_AUTH_ERROR: isEnabled(process.env.MCP_OAUTH_ON_AUTH_ERROR ?? true),
   OAUTH_DETECTION_TIMEOUT: math(process.env.MCP_OAUTH_DETECTION_TIMEOUT ?? 5000),
   CONNECTION_CHECK_TTL: math(process.env.MCP_CONNECTION_CHECK_TTL ?? 60000),

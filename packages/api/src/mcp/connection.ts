@@ -535,10 +535,16 @@ export class MCPConnection extends EventEmitter {
            * only a URL with no custom DNS lookup hook.
            */
           const wsHostname = new URL(options.url).hostname;
-          const isSSRF = await resolveHostnameSSRF(wsHostname);
-          if (isSSRF) {
-            throw new Error(
-              `SSRF protection: WebSocket host "${wsHostname}" resolved to a private/reserved IP address`,
+          if (!mcpConfig.ALLOW_PRIVATE_WS) {
+            const isSSRF = await resolveHostnameSSRF(wsHostname);
+            if (isSSRF) {
+              throw new Error(
+                `SSRF protection: WebSocket host "${wsHostname}" resolved to a private/reserved IP address`,
+              );
+            }
+          } else {
+            logger.warn(
+              `${this.getLogPrefix()} MCP_ALLOW_PRIVATE_WS enabled; skipping WebSocket private IP SSRF check for "${wsHostname}"`,
             );
           }
           return new WebSocketClientTransport(new URL(options.url));
