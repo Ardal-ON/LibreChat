@@ -1,0 +1,62 @@
+SEMAA Vessel Inspection Checklist IC-2026-V1
+
+Organization: SEMAA Marine Operations
+Document Type: Standard Inspection Checklist
+Owner: Fleet Manager Brian Wu
+Effective Date: 2026-01-15
+
+Purpose
+This checklist applies to all scheduled and emergency inspections for Class A and Class B vessels. Inspectors must complete every section and obtain supervisor sign-off before releasing a vessel for departure.
+
+Section 1. Hull and Structural Integrity
+- Inspect hull plating for cracks, corrosion, and impact damage.
+- Check keel alignment and verify no abnormal stress deformation.
+- Inspect all watertight doors and confirm seals are intact.
+- Verify bilge pumps are operational and bilge water level is within acceptable range.
+- Document any hull coating deterioration exceeding 15 percent surface area.
+
+Section 2. Engine and Propulsion
+- Check main engine oil pressure and coolant level.
+- Inspect cooling pump filters (model CPF-9) for blockage or wear.
+- Test engine overheating alert threshold per monitoring system specification.
+- Verify fuel lines for leaks and confirm all fittings are torqued to spec.
+- Record engine hours since last service.
+
+Section 3. Navigation and Communication Equipment
+- Power on radar system and verify sweep range accuracy within 0.5 degrees.
+- Test GPS fix acquisition time (must lock within 90 seconds under open sky).
+- Verify VHF radio channels 16 and 70 are clear and transmitting.
+- Confirm AIS transponder is broadcasting correct vessel MMSI and position.
+- Test intercom system between bridge and engine room.
+
+Section 4. Safety Equipment
+- Verify all life jackets are accessible, undamaged, and within service date.
+- Inspect liferaft hydrostatic release mechanism and confirm service tag is current.
+- Test EPIRB activation indicator light and confirm registration is up to date.
+- Count and inspect fire extinguisher units; verify pressure gauges are in green zone.
+- Confirm flare kit is within expiry date and stowed in designated locker.
+
+Section 5. Electrical Systems
+- Inspect emergency power relay panel; check all terminals for tightness (reference slot E-4 from PM-2026-014 findings).
+- Test emergency generator start-up time (must reach full load within 30 seconds).
+- Inspect battery banks for corrosion and verify charge level above 80 percent.
+- Check navigation light function: port, starboard, stern, and masthead.
+
+Section 6. Fuel Transfer Pre-Check
+- Confirm two-person crew is assigned before initiating any diesel transfer.
+- Verify transfer log is available and dated for current operation.
+- Inspect transfer hose for cracks and confirm all valves are correctly labeled.
+- Set timer reminder at 70-minute mark per policy requirement.
+
+Completion and Sign-Off
+- Inspector Name: ___________________________
+- Inspection Date: ___________________________
+- Vessel Name: ___________________________
+- Vessel Class: ___________________________
+- Deficiencies Found (Y/N): ___________________________
+- Deficiency Notes: ___________________________
+- Supervisor Sign-Off: ___________________________
+- Vessel Release Approved: ___________________________
+
+Escalation
+Any critical deficiency in Section 2 (Engine) or Section 4 (Safety Equipment) must be reported to Safety Director Alice Chen immediately at +886-2-5555-1200 before vessel departure is authorized.
