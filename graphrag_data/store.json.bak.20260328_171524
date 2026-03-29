@@ -1,0 +1,142 @@
+{
+  "files": {
+    "semaa-policy-001": {
+      "file_id": "semaa-policy-001",
+      "filename": "01_marine_policy.txt",
+      "createdAt": 1774743127568,
+      "updatedAt": 1774743127568,
+      "chunkCount": 1,
+      "nodes": [
+        {
+          "id": "semaa-policy-001::0",
+          "index": 0,
+          "content": "document text for 01_marine_policy.txt",
+          "tokens": [
+            "document",
+            "text",
+            "01_marine_policy",
+            "txt"
+          ],
+          "entities": [],
+          "edges": [],
+          "hash": "4ea3023d518e344cd45b3f695583c087f1dcf1ce"
+        }
+      ]
+    },
+    "semaa-incident-003": {
+      "file_id": "semaa-incident-003",
+      "filename": "02_incident_report.txt",
+      "createdAt": 1774743129410,
+      "updatedAt": 1774743129410,
+      "chunkCount": 1,
+      "nodes": [
+        {
+          "id": "semaa-incident-003::0",
+          "index": 0,
+          "content": "document text for 02_incident_report.txt",
+          "tokens": [
+            "document",
+            "text",
+            "02_incident_report",
+            "txt"
+          ],
+          "entities": [],
+          "edges": [],
+          "hash": "7173aecc84baa8f5426e5c779c0629370d6be95f"
+        }
+      ]
+    },
+    "semaa-contract-088": {
+      "file_id": "semaa-contract-088",
+      "filename": "03_supplier_contract.txt",
+      "createdAt": 1774743130807,
+      "updatedAt": 1774743130807,
+      "chunkCount": 1,
+      "nodes": [
+        {
+          "id": "semaa-contract-088::0",
+          "index": 0,
+          "content": "document text for 03_supplier_contract.txt",
+          "tokens": [
+            "document",
+            "text",
+            "03_supplier_contract",
+            "txt"
+          ],
+          "entities": [],
+          "edges": [],
+          "hash": "e82396b47b458812b44bcbbb861f9832c96eb51a"
+        }
+      ]
+    },
+    "semaa-portlog-014": {
+      "file_id": "semaa-portlog-014",
+      "filename": "04_port_maintenance_log.txt",
+      "createdAt": 1774743133017,
+      "updatedAt": 1774743133017,
+      "chunkCount": 1,
+      "nodes": [
+        {
+          "id": "semaa-portlog-014::0",
+          "index": 0,
+          "content": "document text for 04_port_maintenance_log.txt",
+          "tokens": [
+            "document",
+            "text",
+            "04_port_maintenance_log",
+            "txt"
+          ],
+          "entities": [],
+          "edges": [],
+          "hash": "d5662a66465e1da0408efe8f079f979885f289de"
+        }
+      ]
+    },
+    "semaa-training-q1": {
+      "file_id": "semaa-training-q1",
+      "filename": "05_crew_training_record.txt",
+      "createdAt": 1774743135277,
+      "updatedAt": 1774743135277,
+      "chunkCount": 1,
+      "nodes": [
+        {
+          "id": "semaa-training-q1::0",
+          "index": 0,
+          "content": "document text for 05_crew_training_record.txt",
+          "tokens": [
+            "document",
+            "text",
+            "05_crew_training_record",
+            "txt"
+          ],
+          "entities": [],
+          "edges": [],
+          "hash": "52bacc3db7aeb57f411e3df62e5c417d96b2c8cd"
+        }
+      ]
+    },
+    "semaa-budget-h1": {
+      "file_id": "semaa-budget-h1",
+      "filename": "06_budget_and_procurement_plan.txt",
+      "createdAt": 1774743137297,
+      "updatedAt": 1774743137297,
+      "chunkCount": 1,
+      "nodes": [
+        {
+          "id": "semaa-budget-h1::0",
+          "index": 0,
+          "content": "document text for 06_budget_and_procurement_plan.txt",
+          "tokens": [
+            "document",
+            "text",
+            "06_budget_and_procurement_plan",
+            "txt"
+          ],
+          "entities": [],
+          "edges": [],
+          "hash": "b9f70961de66c3214dc5571b2ca68913cf2e02f9"
+        }
+      ]
+    }
+  }
+}
