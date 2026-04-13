@@ -1,13 +1,39 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { Tools } from 'librechat-data-provider';
+import { Constants, dataService, Tools } from 'librechat-data-provider';
 import { UIResourceRenderer } from '@mcp-ui/client';
 import type { TAttachment, UIResource } from 'librechat-data-provider';
 import { useLocalize, useExpandCollapse } from '~/hooks';
 import UIResourceCarousel from './UIResourceCarousel';
 import { useMessagesOperations } from '~/Providers';
 import { OutputRenderer } from './ToolOutput';
+import GraphRAGOutput, {
+  extractGraphIdFromText,
+  extractGraphPayloadFromText,
+  isSummarizedOutput,
+  loadGraphPayloadByGraphId,
+  loadGraphPayloadFromCache,
+  saveGraphPayloadToCache,
+} from './ToolOutput/GraphRAGOutput';
 import { handleUIAction, cn } from '~/utils';
+
+function extractGraphPayloadFromGraphUIResource(resource: UIResource) {
+  if (typeof resource?.text !== 'string' || resource.text.length === 0) {
+    return null;
+  }
+
+  const payload = extractGraphPayloadFromText(resource.text);
+  if (!payload) {
+    return null;
+  }
+
+  const graphIdFromUri = resource.uri?.split('/').pop();
+  if (graphIdFromUri && !payload.graph_id) {
+    return { ...payload, graph_id: graphIdFromUri };
+  }
+
+  return payload;
+}
 
 function isSimpleObject(obj: unknown): obj is Record<string, string | number | boolean | null> {
   if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
@@ -95,16 +121,167 @@ function InputRenderer({ input }: { input: string }) {
 export default function ToolCallInfo({
   input,
   output,
+  toolName,
   attachments,
 }: {
   input: string;
   output?: string | null;
+  toolName?: string;
   attachments?: TAttachment[];
 }) {
   const localize = useLocalize();
   const { ask } = useMessagesOperations();
   const [showParams, setShowParams] = useState(false);
+  const [graphPayloadFromFetch, setGraphPayloadFromFetch] = useState<ReturnType<
+    typeof extractGraphPayloadFromText
+  > | null>(null);
   const { style: paramsExpandStyle, ref: paramsExpandRef } = useExpandCollapse(showParams);
+
+  const isGraphRAGGraphCall = useMemo(() => {
+    if (typeof toolName !== 'string') {
+      return false;
+    }
+    return toolName.includes('graphrag_query_with_graph');
+  }, [toolName]);
+
+  const graphPayloadFromOutput = useMemo(() => {
+    if (typeof output !== 'string' || !isGraphRAGGraphCall) {
+      return null;
+    }
+    return extractGraphPayloadFromText(output);
+  }, [isGraphRAGGraphCall, output]);
+
+  const graphUIResources = useMemo(() => {
+    return (
+      attachments
+        ?.filter((attachment) => attachment.type === Tools.ui_resources)
+        .flatMap((attachment) => {
+          return attachment[Tools.ui_resources] as UIResource[];
+        })
+        .filter((resource) => resource?.uri?.startsWith('ui://graphrag/graph/')) ?? []
+    );
+  }, [attachments]);
+
+  const graphPayloadFromUIResource = useMemo(() => {
+    for (const resource of graphUIResources) {
+      const payload = extractGraphPayloadFromGraphUIResource(resource);
+      if (payload) {
+        return payload;
+      }
+    }
+    return null;
+  }, [graphUIResources]);
+
+  const graphPayload = useMemo(() => {
+    if (graphPayloadFromUIResource) {
+      return graphPayloadFromUIResource;
+    }
+    if (graphPayloadFromOutput) {
+      return graphPayloadFromOutput;
+    }
+    if (graphPayloadFromFetch) {
+      return graphPayloadFromFetch;
+    }
+    if (!isGraphRAGGraphCall || typeof output !== 'string') {
+      return null;
+    }
+
+    const graphId = extractGraphIdFromText(output);
+    if (graphId) {
+      const byGraphId = loadGraphPayloadByGraphId(graphId);
+      if (byGraphId) {
+        return byGraphId;
+      }
+    }
+
+    return loadGraphPayloadFromCache(input, toolName, {
+      allowLatestFallback: isSummarizedOutput(output),
+    });
+  }, [graphPayloadFromFetch, graphPayloadFromOutput, graphPayloadFromUIResource, input, isGraphRAGGraphCall, output, toolName]);
+
+  useEffect(() => {
+    if (!graphPayload || !isGraphRAGGraphCall) {
+      return;
+    }
+    saveGraphPayloadToCache(graphPayload, input, toolName);
+  }, [graphPayload, input, isGraphRAGGraphCall, toolName]);
+
+  useEffect(() => {
+    if (!isGraphRAGGraphCall || graphPayload || typeof output !== 'string') {
+      return;
+    }
+
+    const graphId = extractGraphIdFromText(output);
+    if (!graphId) {
+      return;
+    }
+
+    const delimiter = Constants.mcp_delimiter;
+    const delimiterIndex = toolName?.indexOf(delimiter) ?? -1;
+    if (delimiterIndex < 0 || !toolName) {
+      return;
+    }
+
+    const serverName = toolName.slice(delimiterIndex + delimiter.length);
+    if (!serverName) {
+      return;
+    }
+
+    let cancelled = false;
+    const fetchByGraphId = async () => {
+      try {
+        const response = await dataService.callMCPTool<unknown>(serverName, 'graphrag_get_graph_by_id', {
+          graph_id: graphId,
+          conversationId: 'graphrag-chat-fallback',
+          messageId: `graphrag-chat-fallback-${Date.now()}`,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        const candidate = response?.result;
+        const fromString = typeof candidate === 'string' ? extractGraphPayloadFromText(candidate) : null;
+
+        let fromResourceText: ReturnType<typeof extractGraphPayloadFromText> | null = null;
+        if (!fromString && candidate && typeof candidate === 'object' && 'content' in candidate) {
+          const content = (candidate as { content?: unknown }).content;
+          if (Array.isArray(content)) {
+            for (const item of content) {
+              if (!item || typeof item !== 'object') {
+                continue;
+              }
+              const resource = (item as { resource?: { text?: unknown; uri?: unknown } }).resource;
+              if (
+                resource &&
+                typeof resource.text === 'string' &&
+                typeof resource.uri === 'string' &&
+                resource.uri.startsWith('ui://graphrag/graph/')
+              ) {
+                fromResourceText = extractGraphPayloadFromGraphUIResource(resource as UIResource);
+                if (fromResourceText) {
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        const recovered = fromString ?? fromResourceText;
+        if (recovered) {
+          setGraphPayloadFromFetch(recovered);
+        }
+      } catch {
+        return;
+      }
+    };
+
+    fetchByGraphId();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [graphPayload, isGraphRAGGraphCall, output, toolName]);
 
   const hasParams = useMemo(() => {
     if (!input || input.trim().length === 0) {
@@ -126,11 +303,12 @@ export default function ToolCallInfo({
       ?.filter((attachment) => attachment.type === Tools.ui_resources)
       .flatMap((attachment) => {
         return attachment[Tools.ui_resources] as UIResource[];
-      }) ?? [];
+      })
+      .filter((resource) => !resource?.uri?.startsWith('ui://graphrag/graph/')) ?? [];
 
   return (
     <div className="w-full px-3 py-3.5">
-      {output && <OutputRenderer text={output} />}
+      {graphPayload ? <GraphRAGOutput payload={graphPayload} /> : output && <OutputRenderer text={output} />}
       {output && hasParams && <div className="my-2 border-t border-border-light" />}
       {hasParams && (
         <>

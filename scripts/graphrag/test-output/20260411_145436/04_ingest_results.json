@@ -1,0 +1,74 @@
+[
+  {
+    "status": "ok",
+    "action": "ingested_uploaded_file",
+    "file_id": "test-01-marine-policy",
+    "filename": "01_marine_policy.txt",
+    "chunks": 1,
+    "uploaded_path": "/app/uploads/graphrag-seed/01_marine_policy.txt",
+    "bytes": 1063
+  },
+  {
+    "status": "ok",
+    "action": "ingested_uploaded_file",
+    "file_id": "test-02-incident-report",
+    "filename": "02_incident_report.txt",
+    "chunks": 1,
+    "uploaded_path": "/app/uploads/graphrag-seed/02_incident_report.txt",
+    "bytes": 1023
+  },
+  {
+    "status": "ok",
+    "action": "ingested_uploaded_file",
+    "file_id": "test-03-supplier-contract",
+    "filename": "03_supplier_contract.txt",
+    "chunks": 1,
+    "uploaded_path": "/app/uploads/graphrag-seed/03_supplier_contract.txt",
+    "bytes": 801
+  },
+  {
+    "status": "ok",
+    "action": "ingested_uploaded_file",
+    "file_id": "test-04-port-maintenance-log",
+    "filename": "04_port_maintenance_log.txt",
+    "chunks": 1,
+    "uploaded_path": "/app/uploads/graphrag-seed/04_port_maintenance_log.txt",
+    "bytes": 836
+  },
+  {
+    "status": "ok",
+    "action": "ingested_uploaded_file",
+    "file_id": "test-05-crew-training-record",
+    "filename": "05_crew_training_record.txt",
+    "chunks": 1,
+    "uploaded_path": "/app/uploads/graphrag-seed/05_crew_training_record.txt",
+    "bytes": 891
+  },
+  {
+    "status": "ok",
+    "action": "ingested_uploaded_file",
+    "file_id": "test-06-budget-and-procurement-plan",
+    "filename": "06_budget_and_procurement_plan.txt",
+    "chunks": 1,
+    "uploaded_path": "/app/uploads/graphrag-seed/06_budget_and_procurement_plan.txt",
+    "bytes": 1046
+  },
+  {
+    "status": "ok",
+    "action": "ingested_uploaded_file",
+    "file_id": "test-07-vessel-inspection-checklist",
+    "filename": "07_vessel_inspection_checklist.txt",
+    "chunks": 4,
+    "uploaded_path": "/app/uploads/graphrag-seed/07_vessel_inspection_checklist.txt",
+    "bytes": 3325
+  },
+  {
+    "status": "ok",
+    "action": "ingested_uploaded_file",
+    "file_id": "test-08-emergency-response-protocol",
+    "filename": "08_emergency_response_protocol.txt",
+    "chunks": 3,
+    "uploaded_path": "/app/uploads/graphrag-seed/08_emergency_response_protocol.txt",
+    "bytes": 3211
+  }
+]

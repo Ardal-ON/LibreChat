@@ -40,14 +40,21 @@ export default function ToolCall({
   const localize = useLocalize();
   const autoExpand = useRecoilValue(store.autoExpandTools);
   const hasOutput = (output?.length ?? 0) > 0;
-  const [showInfo, setShowInfo] = useState(() => autoExpand && hasOutput);
+  const isGraphRAGQueryCall = useMemo(() => {
+    if (typeof name !== 'string') {
+      return false;
+    }
+    return name.includes('graphrag_query_knowledge') || name.includes('graphrag_query_with_graph');
+  }, [name]);
+
+  const [showInfo, setShowInfo] = useState(() => (autoExpand || isGraphRAGQueryCall) && hasOutput);
   const { style: expandStyle, ref: expandRef } = useExpandCollapse(showInfo);
 
   useEffect(() => {
-    if (autoExpand && hasOutput) {
+    if ((autoExpand || isGraphRAGQueryCall) && hasOutput) {
       setShowInfo(true);
     }
-  }, [autoExpand, hasOutput]);
+  }, [autoExpand, hasOutput, isGraphRAGQueryCall]);
 
   const { function_name, domain, isMCPToolCall, mcpServerName } = useMemo(() => {
     if (typeof name !== 'string') {
@@ -221,7 +228,7 @@ export default function ToolCall({
         <div className="overflow-hidden" ref={expandRef}>
           {hasInfo && (
             <div className="my-2 overflow-hidden rounded-lg border border-border-light bg-surface-secondary">
-              <ToolCallInfo input={args ?? ''} output={output} attachments={attachments} />
+              <ToolCallInfo input={args ?? ''} output={output} toolName={name} attachments={attachments} />
             </div>
           )}
         </div>

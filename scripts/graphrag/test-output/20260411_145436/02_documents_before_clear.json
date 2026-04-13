@@ -1,0 +1,83 @@
+{
+  "status": "ok",
+  "count": 11,
+  "documents": [
+    {
+      "file_id": "semaa-policy-001",
+      "filename": "01_marine_policy.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775803868963
+    },
+    {
+      "file_id": "semaa-incident-003",
+      "filename": "02_incident_report.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775803868963
+    },
+    {
+      "file_id": "semaa-contract-088",
+      "filename": "03_supplier_contract.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775803868963
+    },
+    {
+      "file_id": "semaa-portlog-014",
+      "filename": "04_port_maintenance_log.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775803868963
+    },
+    {
+      "file_id": "semaa-training-q1",
+      "filename": "05_crew_training_record.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775803868963
+    },
+    {
+      "file_id": "semaa-budget-h1",
+      "filename": "06_budget_and_procurement_plan.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775803868963
+    },
+    {
+      "file_id": "semaa-checklist-v1",
+      "filename": "07_vessel_inspection_checklist.txt",
+      "entity_id": null,
+      "chunkCount": 4,
+      "updatedAt": 1775803910842
+    },
+    {
+      "file_id": "semaa-emergency-v1",
+      "filename": "08_emergency_response_protocol.txt",
+      "entity_id": null,
+      "chunkCount": 3,
+      "updatedAt": 1775803910842
+    },
+    {
+      "file_id": "upload-2de969e37e8d450a",
+      "filename": "03_supplier_contract.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775804174175
+    },
+    {
+      "file_id": "upload-ce5336ac2d36ee45",
+      "filename": "06_budget_and_procurement_plan.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775804176072
+    },
+    {
+      "file_id": "upload-73b9b8453fa4098d",
+      "filename": "08_emergency_response_protocol.txt",
+      "entity_id": null,
+      "chunkCount": 3,
+      "updatedAt": 1775804177526
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "status": "ok",
+  "uploads_dir": "/app/uploads",
+  "count": 11,
+  "files": [
+    {
+      "basename": "08_emergency_response_protocol.txt",
+      "path": "/app/uploads/graphrag-seed/08_emergency_response_protocol.txt",
+      "bytes": 3211
+    },
+    {
+      "basename": "demo_conversation_script.md",
+      "path": "/app/uploads/graphrag-seed/demo_conversation_script.md",
+      "bytes": 6149
+    },
+    {
+      "basename": "07_vessel_inspection_checklist.txt",
+      "path": "/app/uploads/graphrag-seed/07_vessel_inspection_checklist.txt",
+      "bytes": 3325
+    },
+    {
+      "basename": "04_port_maintenance_log.txt",
+      "path": "/app/uploads/graphrag-seed/04_port_maintenance_log.txt",
+      "bytes": 836
+    },
+    {
+      "basename": "05_crew_training_record.txt",
+      "path": "/app/uploads/graphrag-seed/05_crew_training_record.txt",
+      "bytes": 891
+    },
+    {
+      "basename": "06_budget_and_procurement_plan.txt",
+      "path": "/app/uploads/graphrag-seed/06_budget_and_procurement_plan.txt",
+      "bytes": 1046
+    },
+    {
+      "basename": "test_questions_04_06.md",
+      "path": "/app/uploads/graphrag-seed/test_questions_04_06.md",
+      "bytes": 1869
+    },
+    {
+      "basename": "SOP.md",
+      "path": "/app/uploads/graphrag-seed/SOP.md",
+      "bytes": 3410
+    },
+    {
+      "basename": "01_marine_policy.txt",
+      "path": "/app/uploads/graphrag-seed/01_marine_policy.txt",
+      "bytes": 1063
+    },
+    {
+      "basename": "02_incident_report.txt",
+      "path": "/app/uploads/graphrag-seed/02_incident_report.txt",
+      "bytes": 1023
+    },
+    {
+      "basename": "03_supplier_contract.txt",
+      "path": "/app/uploads/graphrag-seed/03_supplier_contract.txt",
+      "bytes": 801
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "status": "ok",
+  "uploads_dir": "/app/uploads",
+  "count": 21,
+  "files": [
+    {
+      "basename": "01_world_overview.txt",
+      "path": "/app/uploads/graphrag-seed/01_world_overview.txt",
+      "bytes": 801
+    },
+    {
+      "basename": "02_dorothy_profile.txt",
+      "path": "/app/uploads/graphrag-seed/02_dorothy_profile.txt",
+      "bytes": 687
+    },
+    {
+      "basename": "03_scarecrow_profile.txt",
+      "path": "/app/uploads/graphrag-seed/03_scarecrow_profile.txt",
+      "bytes": 548
+    },
+    {
+      "basename": "04_tin_woodman_profile.txt",
+      "path": "/app/uploads/graphrag-seed/04_tin_woodman_profile.txt",
+      "bytes": 572
+    },
+    {
+      "basename": "05_cowardly_lion_profile.txt",
+      "path": "/app/uploads/graphrag-seed/05_cowardly_lion_profile.txt",
+      "bytes": 555
+    },
+    {
+      "basename": "06_toto_profile.txt",
+      "path": "/app/uploads/graphrag-seed/06_toto_profile.txt",
+      "bytes": 465
+    },
+    {
+      "basename": "07_wizard_profile.txt",
+      "path": "/app/uploads/graphrag-seed/07_wizard_profile.txt",
+      "bytes": 682
+    },
+    {
+      "basename": "08_glinda_profile.txt",
+      "path": "/app/uploads/graphrag-seed/08_glinda_profile.txt",
+      "bytes": 502
+    },
+    {
+      "basename": "09_good_witch_north_profile.txt",
+      "path": "/app/uploads/graphrag-seed/09_good_witch_north_profile.txt",
+      "bytes": 528
+    },
+    {
+      "basename": "10_wicked_witch_west_profile.txt",
+      "path": "/app/uploads/graphrag-seed/10_wicked_witch_west_profile.txt",
+      "bytes": 539
+    },
+    {
+      "basename": "11_wicked_witch_east_profile.txt",
+      "path": "/app/uploads/graphrag-seed/11_wicked_witch_east_profile.txt",
+      "bytes": 506
+    },
+    {
+      "basename": "12_winged_monkeys_profile.txt",
+      "path": "/app/uploads/graphrag-seed/12_winged_monkeys_profile.txt",
+      "bytes": 530
+    },
+    {
+      "basename": "13_munchkins_profile.txt",
+      "path": "/app/uploads/graphrag-seed/13_munchkins_profile.txt",
+      "bytes": 463
+    },
+    {
+      "basename": "14_emerald_city_system.txt",
+      "path": "/app/uploads/graphrag-seed/14_emerald_city_system.txt",
+      "bytes": 489
+    },
+    {
+      "basename": "15_yellow_brick_road_journey.txt",
+      "path": "/app/uploads/graphrag-seed/15_yellow_brick_road_journey.txt",
+      "bytes": 521
+    },
+    {
+      "basename": "16_conflict_timeline.txt",
+      "path": "/app/uploads/graphrag-seed/16_conflict_timeline.txt",
+      "bytes": 484
+    },
+    {
+      "basename": "17_artifacts_and_power.txt",
+      "path": "/app/uploads/graphrag-seed/17_artifacts_and_power.txt",
+      "bytes": 497
+    },
+    {
+      "basename": "18_alliance_network.txt",
+      "path": "/app/uploads/graphrag-seed/18_alliance_network.txt",
+      "bytes": 553
+    },
+    {
+      "basename": "19_opposition_network.txt",
+      "path": "/app/uploads/graphrag-seed/19_opposition_network.txt",
+      "bytes": 541
+    },
+    {
+      "basename": "20_test_queries_and_expected_relations.txt",
+      "path": "/app/uploads/graphrag-seed/20_test_queries_and_expected_relations.txt",
+      "bytes": 799
+    },
+    {
+      "basename": "test_questions_04_06.md",
+      "path": "/app/uploads/graphrag-seed/test_questions_04_06.md",
+      "bytes": 1869
+    }
+  ]
+}

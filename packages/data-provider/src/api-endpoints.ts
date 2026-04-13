@@ -203,6 +203,10 @@ export const mcpAuthValues = (serverName: string) => {
   return `${BASE_URL}/api/mcp/${serverName}/auth-values`;
 };
 
+export const mcpToolCall = (serverName: string, toolName: string) => {
+  return `${BASE_URL}/api/mcp/${serverName}/tools/${toolName}/call`;
+};
+
 export const cancelMCPOAuth = (serverName: string) => {
   return `${BASE_URL}/api/mcp/oauth/cancel/${serverName}`;
 };

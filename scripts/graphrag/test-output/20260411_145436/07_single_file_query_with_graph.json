@@ -1,0 +1,252 @@
+{
+  "status": "ok",
+  "action": "queried_with_graph",
+  "count": 1,
+  "controls": {
+    "top_k": 8,
+    "min_score": 0,
+    "max_nodes": 80,
+    "auto_tuned": false
+  },
+  "graph": {
+    "contract": {
+      "name": "semaa.graphrag.graph",
+      "version": "1.0.0"
+    },
+    "query": "What are the supplier obligations, delivery timelines, and penalties in this document?",
+    "filters": {
+      "file_ids": [
+        "test-03-supplier-contract"
+      ]
+    },
+    "subgraph": {
+      "nodes": [
+        {
+          "id": "doc:test-03-supplier-contract",
+          "label": "03_supplier_contract.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {
+            "file_id": "test-03-supplier-contract",
+            "filename": "03_supplier_contract.txt"
+          }
+        },
+        {
+          "id": "chunk:test-03-supplier-contract::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.333333,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {
+            "file_id": "test-03-supplier-contract",
+            "chunk_index": 0
+          }
+        },
+        {
+          "id": "entity:supplier_contract",
+          "label": "Supplier Contract",
+          "type": "entity",
+          "score": 0.333333,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:buyer",
+          "label": "Buyer",
+          "type": "entity",
+          "score": 0.333333,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:marine_operations_supplier",
+          "label": "Marine Operations\nSupplier",
+          "type": "entity",
+          "score": 0.333333,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:parts_ltd",
+          "label": "Parts Ltd",
+          "type": "entity",
+          "score": 0.333333,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:contract_start",
+          "label": "Contract Start",
+          "type": "entity",
+          "score": 0.333333,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:contract_end",
+          "label": "Contract End",
+          "type": "entity",
+          "score": 0.333333,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:scope",
+          "label": "Scope",
+          "type": "entity",
+          "score": 0.333333,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:monthly",
+          "label": "Monthly",
+          "type": "entity",
+          "score": 0.333333,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge:contains:doc:test-03-supplier-contract:chunk:test-03-supplier-contract::0",
+          "source": "doc:test-03-supplier-contract",
+          "target": "chunk:test-03-supplier-contract::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:supplier_contract",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:supplier_contract",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:buyer",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:buyer",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:marine_operations_supplier",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:marine_operations_supplier",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:parts_ltd",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:parts_ltd",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:contract_start",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:contract_start",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:contract_end",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:contract_end",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:scope",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:scope",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:monthly",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:monthly",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        }
+      ]
+    },
+    "meta": {
+      "generated_at": 1775944476177,
+      "node_count": 10,
+      "edge_count": 9,
+      "truncated": false,
+      "max_nodes": 80
+    },
+    "validation": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "results": [
+    {
+      "file_id": "test-03-supplier-contract",
+      "filename": "03_supplier_contract.txt",
+      "entity_id": null,
+      "chunk_index": 0,
+      "score": 0.33333333333333337,
+      "distance": 0.666667,
+      "content": "Supplier Contract SC-88\n\nBuyer: SEMAA Marine Operations\nSupplier: OceanCore Parts Ltd.\nContract Start: 2026-01-01\nContract End: 2026-12-31\n\nScope\n- Monthly delivery of cooling pump filters.\n- Priority support for overheating incidents.\n\nService Levels\n- Standard delivery: within 5 business days.\n- Emergency delivery: within 24 hours after approved request.\n\nCommercial Terms\n- Unit price for filter model CPF-9: USD 22...",
+      "entities": [
+        "Supplier Contract",
+        "Buyer",
+        "Marine Operations\nSupplier",
+        "Parts Ltd",
+        "Contract Start",
+        "Contract End",
+        "Scope",
+        "Monthly",
+        "Priority",
+        "Service Levels",
+        "Standard",
+        "Emergency",
+        "Commercial Terms",
+        "Unit",
+        "Bulk",
+        "Late",
+        "Contract Contacts",
+        "Brian Wu",
+        "Supplier",
+        "Julia Park\n\nTermination",
+        "Immediate"
+      ]
+    }
+  ]
+}

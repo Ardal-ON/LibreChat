@@ -1,0 +1,126 @@
+{
+  "ingested": 20,
+  "docsAfterCount": 0,
+  "files": [
+    {
+      "file": "01_world_overview.txt",
+      "file_id": "oz-01-world-overview",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "02_dorothy_profile.txt",
+      "file_id": "oz-02-dorothy-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "03_scarecrow_profile.txt",
+      "file_id": "oz-03-scarecrow-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "04_tin_woodman_profile.txt",
+      "file_id": "oz-04-tin-woodman-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "05_cowardly_lion_profile.txt",
+      "file_id": "oz-05-cowardly-lion-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "06_toto_profile.txt",
+      "file_id": "oz-06-toto-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "07_wizard_profile.txt",
+      "file_id": "oz-07-wizard-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "08_glinda_profile.txt",
+      "file_id": "oz-08-glinda-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "09_good_witch_north_profile.txt",
+      "file_id": "oz-09-good-witch-north-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "10_wicked_witch_west_profile.txt",
+      "file_id": "oz-10-wicked-witch-west-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "11_wicked_witch_east_profile.txt",
+      "file_id": "oz-11-wicked-witch-east-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "12_winged_monkeys_profile.txt",
+      "file_id": "oz-12-winged-monkeys-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "13_munchkins_profile.txt",
+      "file_id": "oz-13-munchkins-profile",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "14_emerald_city_system.txt",
+      "file_id": "oz-14-emerald-city-system",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "15_yellow_brick_road_journey.txt",
+      "file_id": "oz-15-yellow-brick-road-journey",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "16_conflict_timeline.txt",
+      "file_id": "oz-16-conflict-timeline",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "17_artifacts_and_power.txt",
+      "file_id": "oz-17-artifacts-and-power",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "18_alliance_network.txt",
+      "file_id": "oz-18-alliance-network",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "19_opposition_network.txt",
+      "file_id": "oz-19-opposition-network",
+      "chunks": null,
+      "status": "ok"
+    },
+    {
+      "file": "20_test_queries_and_expected_relations.txt",
+      "file_id": "oz-20-test-queries-and-expected-relations",
+      "chunks": null,
+      "status": "ok"
+    }
+  ]
+}

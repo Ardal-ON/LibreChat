@@ -200,6 +200,14 @@ export const getMCPAuthValues = (serverName: string): Promise<q.MCPAuthValuesRes
   return request.get(endpoints.mcpAuthValues(serverName));
 };
 
+export const callMCPTool = <TResult = unknown>(
+  serverName: string,
+  toolName: string,
+  payload: Record<string, unknown>,
+): Promise<{ result: TResult }> => {
+  return request.post(endpoints.mcpToolCall(serverName, toolName), payload);
+};
+
 export function cancelMCPOAuth(serverName: string): Promise<m.CancelMCPOAuthResponse> {
   return request.post(endpoints.cancelMCPOAuth(serverName), {});
 }
