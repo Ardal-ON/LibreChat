@@ -3,10 +3,9 @@ import { ChevronDown } from 'lucide-react';
 import { Constants, dataService, Tools } from 'librechat-data-provider';
 import { UIResourceRenderer } from '@mcp-ui/client';
 import type { TAttachment, UIResource } from 'librechat-data-provider';
+import { useOptionalMessagesOperations } from '~/Providers';
 import { useLocalize, useExpandCollapse } from '~/hooks';
 import UIResourceCarousel from './UIResourceCarousel';
-import { useMessagesOperations } from '~/Providers';
-import { OutputRenderer } from './ToolOutput';
 import GraphRAGOutput, {
   extractGraphIdFromText,
   extractGraphPayloadFromText,
@@ -16,6 +15,7 @@ import GraphRAGOutput, {
   saveGraphPayloadToCache,
 } from './ToolOutput/GraphRAGOutput';
 import { handleUIAction, cn } from '~/utils';
+import { OutputRenderer } from './ToolOutput';
 
 function extractGraphPayloadFromGraphUIResource(resource: UIResource) {
   if (typeof resource?.text !== 'string' || resource.text.length === 0) {
@@ -130,7 +130,7 @@ export default function ToolCallInfo({
   attachments?: TAttachment[];
 }) {
   const localize = useLocalize();
-  const { ask } = useMessagesOperations();
+  const { ask } = useOptionalMessagesOperations();
   const [showParams, setShowParams] = useState(false);
   const [graphPayloadFromFetch, setGraphPayloadFromFetch] = useState<ReturnType<
     typeof extractGraphPayloadFromText

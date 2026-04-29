@@ -137,9 +137,10 @@ const userSchema = new Schema<IUser>(
       type: [
         {
           _id: false,
-          agentId: String, // for agent
-          model: String, // for model
-          endpoint: String, // for model
+          agentId: { type: String, maxlength: 256 },
+          model: { type: String, maxlength: 256 },
+          endpoint: { type: String, maxlength: 256 },
+          spec: { type: String, maxlength: 256 },
         },
       ],
       default: [],
@@ -158,6 +159,7 @@ const userSchema = new Schema<IUser>(
 );
 
 userSchema.index({ email: 1, tenantId: 1 }, { unique: true });
+userSchema.index({ role: 1, tenantId: 1 });
 
 const oAuthIdFields = [
   'googleId',

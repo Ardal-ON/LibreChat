@@ -20,6 +20,7 @@ jest.mock('~/endpoints/models', () => ({
 
 jest.mock('~/cache', () => ({
   standardCache: jest.fn(() => ({ get: jest.fn().mockResolvedValue(null) })),
+  tokenConfigCache: jest.fn(() => ({ get: jest.fn().mockResolvedValue(null) })),
 }));
 
 jest.mock('~/utils', () => ({
@@ -81,7 +82,7 @@ describe('initializeCustom – Agents API user key resolution', () => {
       userApiKey: 'sk-user-key',
     });
     // Simulate Agents API request body (no `key` field)
-    params.req.body = { model: 'agent_123', messages: [] };
+    params.req.body = { model: 'agent_123' };
 
     await initializeCustom(params);
 
@@ -104,7 +105,7 @@ describe('initializeCustom – Agents API user key resolution', () => {
       baseURL: AuthType.USER_PROVIDED,
       userBaseURL: 'https://user-api.example.com/v1',
     });
-    params.req.body = { model: 'agent_123', messages: [] };
+    params.req.body = { model: 'agent_123' };
 
     await initializeCustom(params);
 
