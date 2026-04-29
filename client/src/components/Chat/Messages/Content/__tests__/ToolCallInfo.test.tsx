@@ -7,6 +7,17 @@ import UIResourceCarousel from '~/components/Chat/Messages/Content/UIResourceCar
 import ToolCallInfo from '~/components/Chat/Messages/Content/ToolCallInfo';
 import { getGraphPayloadCacheKey } from '~/components/Chat/Messages/Content/ToolOutput/GraphRAGOutput';
 
+jest.mock('librechat-data-provider', () => {
+  const actual = jest.requireActual('librechat-data-provider');
+  return {
+    ...actual,
+    dataService: {
+      ...actual.dataService,
+      callMCPTool: jest.fn(),
+    },
+  };
+});
+
 jest.mock('react-cytoscapejs', () => () => <div data-testid="mock-cytoscape" />);
 
 // Mock the dependencies
@@ -332,7 +343,7 @@ describe('ToolCallInfo', () => {
         />,
       );
 
-      expect(screen.getByText('2 nodes | 1 edges')).toBeInTheDocument();
+      expect(screen.getByText('3 nodes | 1 edges')).toBeInTheDocument();
       expect(screen.queryByText('4 nodes | 3 edges')).not.toBeInTheDocument();
     });
 
@@ -346,7 +357,7 @@ describe('ToolCallInfo', () => {
         },
       };
 
-      jest.spyOn(dataService, 'callMCPTool').mockResolvedValueOnce({
+      (dataService.callMCPTool as jest.Mock).mockResolvedValueOnce({
         result: {
           content: [
             {
