@@ -1,0 +1,20 @@
+{
+  "result": {
+    "lc": 1,
+    "type": "constructor",
+    "id": [
+      "langchain_core",
+      "messages",
+      "ToolMessage"
+    ],
+    "kwargs": {
+      "status": "success",
+      "content": "{\n  \"status\": \"ok\",\n  \"uploads_dir\": \"/app/uploads\",\n  \"count\": 11,\n  \"files\": [\n    {\n      \"basename\": \"08_emergency_response_protocol.txt\",\n      \"path\": \"/app/uploads/graphrag-seed/08_emergency_response_protocol.txt\",\n      \"bytes\": 3211\n    },\n    {\n      \"basename\": \"demo_conversation_script.md\",\n      \"path\": \"/app/uploads/graphrag-seed/demo_conversation_script.md\",\n      \"bytes\": 6149\n    },\n    {\n      \"basename\": \"07_vessel_inspection_checklist.txt\",\n      \"path\": \"/app/uploads/graphrag-seed/07_vessel_inspection_checklist.txt\",\n      \"bytes\": 3325\n    },\n    {\n      \"basename\": \"04_port_maintenance_log.txt\",\n      \"path\": \"/app/uploads/graphrag-seed/04_port_maintenance_log.txt\",\n      \"bytes\": 836\n    },\n    {\n      \"basename\": \"05_crew_training_record.txt\",\n      \"path\": \"/app/uploads/graphrag-seed/05_crew_training_record.txt\",\n      \"bytes\": 891\n    },\n    {\n      \"basename\": \"06_budget_and_procurement_plan.txt\",\n      \"path\": \"/app/uploads/graphrag-seed/06_budget_and_procurement_plan.txt\",\n      \"bytes\": 1046\n    },\n    {\n      \"basename\": \"test_questions_04_06.md\",\n      \"path\": \"/app/uploads/graphrag-seed/test_questions_04_06.md\",\n      \"bytes\": 1869\n    },\n    {\n      \"basename\": \"SOP.md\",\n      \"path\": \"/app/uploads/graphrag-seed/SOP.md\",\n      \"bytes\": 3410\n    },\n    {\n      \"basename\": \"01_marine_policy.txt\",\n      \"path\": \"/app/uploads/graphrag-seed/01_marine_policy.txt\",\n      \"bytes\": 1063\n    },\n    {\n      \"basename\": \"02_incident_report.txt\",\n      \"path\": \"/app/uploads/graphrag-seed/02_incident_report.txt\",\n      \"bytes\": 1023\n    },\n    {\n      \"basename\": \"03_supplier_contract.txt\",\n      \"path\": \"/app/uploads/graphrag-seed/03_supplier_contract.txt\",\n      \"bytes\": 801\n    }\n  ]\n}",
+      "tool_call_id": "graphrag-progress-1775944449681",
+      "name": "graphrag_list_uploaded_text_files_mcp_graphrag",
+      "metadata": {},
+      "additional_kwargs": {},
+      "response_metadata": {}
+    }
+  }
+}

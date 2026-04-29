@@ -1,0 +1,1663 @@
+{
+  "status": "ok",
+  "action": "queried_with_graph",
+  "count": 8,
+  "controls": {
+    "top_k": 8,
+    "min_score": 0,
+    "max_nodes": 80,
+    "auto_tuned": false
+  },
+  "graph": {
+    "contract": {
+      "name": "semaa.graphrag.graph",
+      "version": "1.0.0"
+    },
+    "query": "Combine supplier contract, procurement budget, and emergency response constraints to propose an emergency procurement SLA fallback plan with risks and mitigations.",
+    "filters": {
+      "file_ids": []
+    },
+    "subgraph": {
+      "nodes": [
+        {
+          "id": "doc:test-08-emergency-response-protocol",
+          "label": "08_emergency_response_protocol.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {
+            "file_id": "test-08-emergency-response-protocol",
+            "filename": "08_emergency_response_protocol.txt"
+          }
+        },
+        {
+          "id": "chunk:test-08-emergency-response-protocol::2",
+          "label": "Chunk 2",
+          "type": "chunk",
+          "score": 0.371429,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {
+            "file_id": "test-08-emergency-response-protocol",
+            "chunk_index": 2
+          }
+        },
+        {
+          "id": "entity:step",
+          "label": "Step",
+          "type": "entity",
+          "score": 0.371429,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:contact_incident_hotline",
+          "label": "Contact Incident Hotline",
+          "type": "entity",
+          "score": 0.371429,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:complete",
+          "label": "Complete",
+          "type": "entity",
+          "score": 0.371429,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:section",
+          "label": "Section",
+          "type": "entity",
+          "score": 0.371429,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:reporting_requirements",
+          "label": "Reporting Requirements",
+          "type": "entity",
+          "score": 0.371429,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:all_level",
+          "label": "All Level",
+          "type": "entity",
+          "score": 0.371429,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:level",
+          "label": "Level",
+          "type": "entity",
+          "score": 0.371429,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:fleet_manager_brian_wu",
+          "label": "Fleet Manager Brian Wu",
+          "type": "entity",
+          "score": 0.371429,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "doc:test-06-budget-and-procurement-plan",
+          "label": "06_budget_and_procurement_plan.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {
+            "file_id": "test-06-budget-and-procurement-plan",
+            "filename": "06_budget_and_procurement_plan.txt"
+          }
+        },
+        {
+          "id": "chunk:test-06-budget-and-procurement-plan::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.342857,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {
+            "file_id": "test-06-budget-and-procurement-plan",
+            "chunk_index": 0
+          }
+        },
+        {
+          "id": "entity:budget",
+          "label": "Budget",
+          "type": "entity",
+          "score": 0.342857,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:procurement_plan",
+          "label": "Procurement Plan",
+          "type": "entity",
+          "score": 0.342857,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:department",
+          "label": "Department",
+          "type": "entity",
+          "score": 0.342857,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:marine_operations",
+          "label": "Marine Operations",
+          "type": "entity",
+          "score": 0.342857,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:safety_prepared_by",
+          "label": "Safety\nPrepared By",
+          "type": "entity",
+          "score": 0.342857,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:finance_lead_irene_kuo_period",
+          "label": "Finance Lead Irene Kuo\nPeriod",
+          "type": "entity",
+          "score": 0.342857,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:budget_allocation",
+          "label": "Budget Allocation",
+          "type": "entity",
+          "score": 0.342857,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:safety",
+          "label": "Safety",
+          "type": "entity",
+          "score": 0.342857,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "doc:test-03-supplier-contract",
+          "label": "03_supplier_contract.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {
+            "file_id": "test-03-supplier-contract",
+            "filename": "03_supplier_contract.txt"
+          }
+        },
+        {
+          "id": "chunk:test-03-supplier-contract::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.314286,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {
+            "file_id": "test-03-supplier-contract",
+            "chunk_index": 0
+          }
+        },
+        {
+          "id": "entity:supplier_contract",
+          "label": "Supplier Contract",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:buyer",
+          "label": "Buyer",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:marine_operations_supplier",
+          "label": "Marine Operations\nSupplier",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:parts_ltd",
+          "label": "Parts Ltd",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:contract_start",
+          "label": "Contract Start",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:contract_end",
+          "label": "Contract End",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:scope",
+          "label": "Scope",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:monthly",
+          "label": "Monthly",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "chunk:test-08-emergency-response-protocol::1",
+          "label": "Chunk 1",
+          "type": "chunk",
+          "score": 0.314286,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {
+            "file_id": "test-08-emergency-response-protocol",
+            "chunk_index": 1
+          }
+        },
+        {
+          "id": "entity:submit",
+          "label": "Submit",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:notify_safety_director_alice_chen",
+          "label": "Notify Safety Director Alice Chen",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:note",
+          "label": "Note",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:ensure",
+          "label": "Ensure",
+          "type": "entity",
+          "score": 0.314286,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "doc:test-02-incident-report",
+          "label": "02_incident_report.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {
+            "file_id": "test-02-incident-report",
+            "filename": "02_incident_report.txt"
+          }
+        },
+        {
+          "id": "chunk:test-02-incident-report::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.257143,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {
+            "file_id": "test-02-incident-report",
+            "chunk_index": 0
+          }
+        },
+        {
+          "id": "entity:incident_report",
+          "label": "Incident Report",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:reported_by",
+          "label": "Reported By",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:captain_henry_lin_date",
+          "label": "Captain Henry Lin\nDate",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:vessel",
+          "label": "Vessel",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:aurora",
+          "label": "Aurora",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:vessel_class",
+          "label": "Vessel Class",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:class",
+          "label": "Class",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:route",
+          "label": "Route",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-02-incident-report"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "doc:test-05-crew-training-record",
+          "label": "05_crew_training_record.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {
+            "file_id": "test-05-crew-training-record",
+            "filename": "05_crew_training_record.txt"
+          }
+        },
+        {
+          "id": "chunk:test-05-crew-training-record::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.257143,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {
+            "file_id": "test-05-crew-training-record",
+            "chunk_index": 0
+          }
+        },
+        {
+          "id": "entity:crew_training_record",
+          "label": "Crew Training Record",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:program",
+          "label": "Program",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:emergency_response",
+          "label": "Emergency Response",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:fuel_transfer_safety_coordinator",
+          "label": "Fuel Transfer Safety\nCoordinator",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:alice_chen_quarter",
+          "label": "Alice Chen\nQuarter",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:training_modules",
+          "label": "Training Modules",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:module",
+          "label": "Module",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:engine",
+          "label": "Engine",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-05-crew-training-record"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "chunk:test-08-emergency-response-protocol::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.257143,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {
+            "file_id": "test-08-emergency-response-protocol",
+            "chunk_index": 0
+          }
+        },
+        {
+          "id": "entity:emergency_response_protocol",
+          "label": "Emergency Response Protocol",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:organization",
+          "label": "Organization",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:marine_operations_document_type",
+          "label": "Marine Operations\nDocument Type",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:operational_protocol_owner",
+          "label": "Operational Protocol\nOwner",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:safety_director_alice_chen_effective_date",
+          "label": "Safety Director Alice Chen\nEffective Date",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:version",
+          "label": "Version",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:purpose_this",
+          "label": "Purpose\nThis",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:all",
+          "label": "All",
+          "type": "entity",
+          "score": 0.257143,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "doc:test-01-marine-policy",
+          "label": "01_marine_policy.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-01-marine-policy"
+          ],
+          "attributes": {
+            "file_id": "test-01-marine-policy",
+            "filename": "01_marine_policy.txt"
+          }
+        },
+        {
+          "id": "chunk:test-01-marine-policy::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.228571,
+          "source_docs": [
+            "test-01-marine-policy"
+          ],
+          "attributes": {
+            "file_id": "test-01-marine-policy",
+            "chunk_index": 0
+          }
+        },
+        {
+          "id": "entity:marine_safety_policy",
+          "label": "Marine Safety Policy",
+          "type": "entity",
+          "score": 0.228571,
+          "source_docs": [
+            "test-01-marine-policy"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:marine_operations_effective_date",
+          "label": "Marine Operations\nEffective Date",
+          "type": "entity",
+          "score": 0.228571,
+          "source_docs": [
+            "test-01-marine-policy"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:owner",
+          "label": "Owner",
+          "type": "entity",
+          "score": 0.228571,
+          "source_docs": [
+            "test-01-marine-policy"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:marine_compliance_team_section",
+          "label": "Marine Compliance Team\n\nSection",
+          "type": "entity",
+          "score": 0.228571,
+          "source_docs": [
+            "test-01-marine-policy"
+          ],
+          "attributes": {}
+        },
+        {
+          "id": "entity:vessel_classes",
+          "label": "Vessel Classes",
+          "type": "entity",
+          "score": 0.228571,
+          "source_docs": [
+            "test-01-marine-policy"
+          ],
+          "attributes": {}
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge:contains:doc:test-08-emergency-response-protocol:chunk:test-08-emergency-response-protocol::2",
+          "source": "doc:test-08-emergency-response-protocol",
+          "target": "chunk:test-08-emergency-response-protocol::2",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::2:entity:step",
+          "source": "chunk:test-08-emergency-response-protocol::2",
+          "target": "entity:step",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::2:entity:contact_incident_hotline",
+          "source": "chunk:test-08-emergency-response-protocol::2",
+          "target": "entity:contact_incident_hotline",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::2:entity:complete",
+          "source": "chunk:test-08-emergency-response-protocol::2",
+          "target": "entity:complete",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::2:entity:section",
+          "source": "chunk:test-08-emergency-response-protocol::2",
+          "target": "entity:section",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::2:entity:reporting_requirements",
+          "source": "chunk:test-08-emergency-response-protocol::2",
+          "target": "entity:reporting_requirements",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::2:entity:all_level",
+          "source": "chunk:test-08-emergency-response-protocol::2",
+          "target": "entity:all_level",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::2:entity:level",
+          "source": "chunk:test-08-emergency-response-protocol::2",
+          "target": "entity:level",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::2:entity:fleet_manager_brian_wu",
+          "source": "chunk:test-08-emergency-response-protocol::2",
+          "target": "entity:fleet_manager_brian_wu",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-06-budget-and-procurement-plan:chunk:test-06-budget-and-procurement-plan::0",
+          "source": "doc:test-06-budget-and-procurement-plan",
+          "target": "chunk:test-06-budget-and-procurement-plan::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-06-budget-and-procurement-plan::0:entity:budget",
+          "source": "chunk:test-06-budget-and-procurement-plan::0",
+          "target": "entity:budget",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-06-budget-and-procurement-plan::0:entity:procurement_plan",
+          "source": "chunk:test-06-budget-and-procurement-plan::0",
+          "target": "entity:procurement_plan",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-06-budget-and-procurement-plan::0:entity:department",
+          "source": "chunk:test-06-budget-and-procurement-plan::0",
+          "target": "entity:department",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-06-budget-and-procurement-plan::0:entity:marine_operations",
+          "source": "chunk:test-06-budget-and-procurement-plan::0",
+          "target": "entity:marine_operations",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-06-budget-and-procurement-plan::0:entity:safety_prepared_by",
+          "source": "chunk:test-06-budget-and-procurement-plan::0",
+          "target": "entity:safety_prepared_by",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-06-budget-and-procurement-plan::0:entity:finance_lead_irene_kuo_period",
+          "source": "chunk:test-06-budget-and-procurement-plan::0",
+          "target": "entity:finance_lead_irene_kuo_period",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-06-budget-and-procurement-plan::0:entity:budget_allocation",
+          "source": "chunk:test-06-budget-and-procurement-plan::0",
+          "target": "entity:budget_allocation",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-06-budget-and-procurement-plan::0:entity:safety",
+          "source": "chunk:test-06-budget-and-procurement-plan::0",
+          "target": "entity:safety",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-03-supplier-contract:chunk:test-03-supplier-contract::0",
+          "source": "doc:test-03-supplier-contract",
+          "target": "chunk:test-03-supplier-contract::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:supplier_contract",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:supplier_contract",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:buyer",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:buyer",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:marine_operations_supplier",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:marine_operations_supplier",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:parts_ltd",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:parts_ltd",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:contract_start",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:contract_start",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:contract_end",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:contract_end",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:scope",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:scope",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-03-supplier-contract::0:entity:monthly",
+          "source": "chunk:test-03-supplier-contract::0",
+          "target": "entity:monthly",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-08-emergency-response-protocol:chunk:test-08-emergency-response-protocol::1",
+          "source": "doc:test-08-emergency-response-protocol",
+          "target": "chunk:test-08-emergency-response-protocol::1",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::1:entity:step",
+          "source": "chunk:test-08-emergency-response-protocol::1",
+          "target": "entity:step",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::1:entity:level",
+          "source": "chunk:test-08-emergency-response-protocol::1",
+          "target": "entity:level",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::1:entity:submit",
+          "source": "chunk:test-08-emergency-response-protocol::1",
+          "target": "entity:submit",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::1:entity:notify_safety_director_alice_chen",
+          "source": "chunk:test-08-emergency-response-protocol::1",
+          "target": "entity:notify_safety_director_alice_chen",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::1:entity:note",
+          "source": "chunk:test-08-emergency-response-protocol::1",
+          "target": "entity:note",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::1:entity:ensure",
+          "source": "chunk:test-08-emergency-response-protocol::1",
+          "target": "entity:ensure",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::1:entity:parts_ltd",
+          "source": "chunk:test-08-emergency-response-protocol::1",
+          "target": "entity:parts_ltd",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::1:entity:section",
+          "source": "chunk:test-08-emergency-response-protocol::1",
+          "target": "entity:section",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:adjacent:chunk:test-08-emergency-response-protocol::1:chunk:test-08-emergency-response-protocol::2",
+          "source": "chunk:test-08-emergency-response-protocol::1",
+          "target": "chunk:test-08-emergency-response-protocol::2",
+          "relation": "adjacent",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-02-incident-report:chunk:test-02-incident-report::0",
+          "source": "doc:test-02-incident-report",
+          "target": "chunk:test-02-incident-report::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-02-incident-report::0:entity:incident_report",
+          "source": "chunk:test-02-incident-report::0",
+          "target": "entity:incident_report",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-02-incident-report::0:entity:reported_by",
+          "source": "chunk:test-02-incident-report::0",
+          "target": "entity:reported_by",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-02-incident-report::0:entity:captain_henry_lin_date",
+          "source": "chunk:test-02-incident-report::0",
+          "target": "entity:captain_henry_lin_date",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-02-incident-report::0:entity:vessel",
+          "source": "chunk:test-02-incident-report::0",
+          "target": "entity:vessel",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-02-incident-report::0:entity:aurora",
+          "source": "chunk:test-02-incident-report::0",
+          "target": "entity:aurora",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-02-incident-report::0:entity:vessel_class",
+          "source": "chunk:test-02-incident-report::0",
+          "target": "entity:vessel_class",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-02-incident-report::0:entity:class",
+          "source": "chunk:test-02-incident-report::0",
+          "target": "entity:class",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-02-incident-report::0:entity:route",
+          "source": "chunk:test-02-incident-report::0",
+          "target": "entity:route",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-05-crew-training-record:chunk:test-05-crew-training-record::0",
+          "source": "doc:test-05-crew-training-record",
+          "target": "chunk:test-05-crew-training-record::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-05-crew-training-record::0:entity:crew_training_record",
+          "source": "chunk:test-05-crew-training-record::0",
+          "target": "entity:crew_training_record",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-05-crew-training-record::0:entity:program",
+          "source": "chunk:test-05-crew-training-record::0",
+          "target": "entity:program",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-05-crew-training-record::0:entity:emergency_response",
+          "source": "chunk:test-05-crew-training-record::0",
+          "target": "entity:emergency_response",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-05-crew-training-record::0:entity:fuel_transfer_safety_coordinator",
+          "source": "chunk:test-05-crew-training-record::0",
+          "target": "entity:fuel_transfer_safety_coordinator",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-05-crew-training-record::0:entity:alice_chen_quarter",
+          "source": "chunk:test-05-crew-training-record::0",
+          "target": "entity:alice_chen_quarter",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-05-crew-training-record::0:entity:training_modules",
+          "source": "chunk:test-05-crew-training-record::0",
+          "target": "entity:training_modules",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-05-crew-training-record::0:entity:module",
+          "source": "chunk:test-05-crew-training-record::0",
+          "target": "entity:module",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-05-crew-training-record::0:entity:engine",
+          "source": "chunk:test-05-crew-training-record::0",
+          "target": "entity:engine",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-08-emergency-response-protocol:chunk:test-08-emergency-response-protocol::0",
+          "source": "doc:test-08-emergency-response-protocol",
+          "target": "chunk:test-08-emergency-response-protocol::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::0:entity:emergency_response_protocol",
+          "source": "chunk:test-08-emergency-response-protocol::0",
+          "target": "entity:emergency_response_protocol",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::0:entity:organization",
+          "source": "chunk:test-08-emergency-response-protocol::0",
+          "target": "entity:organization",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::0:entity:marine_operations_document_type",
+          "source": "chunk:test-08-emergency-response-protocol::0",
+          "target": "entity:marine_operations_document_type",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::0:entity:operational_protocol_owner",
+          "source": "chunk:test-08-emergency-response-protocol::0",
+          "target": "entity:operational_protocol_owner",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::0:entity:safety_director_alice_chen_effective_date",
+          "source": "chunk:test-08-emergency-response-protocol::0",
+          "target": "entity:safety_director_alice_chen_effective_date",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::0:entity:version",
+          "source": "chunk:test-08-emergency-response-protocol::0",
+          "target": "entity:version",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::0:entity:purpose_this",
+          "source": "chunk:test-08-emergency-response-protocol::0",
+          "target": "entity:purpose_this",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-08-emergency-response-protocol::0:entity:all",
+          "source": "chunk:test-08-emergency-response-protocol::0",
+          "target": "entity:all",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:adjacent:chunk:test-08-emergency-response-protocol::0:chunk:test-08-emergency-response-protocol::1",
+          "source": "chunk:test-08-emergency-response-protocol::0",
+          "target": "chunk:test-08-emergency-response-protocol::1",
+          "relation": "adjacent",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-01-marine-policy:chunk:test-01-marine-policy::0",
+          "source": "doc:test-01-marine-policy",
+          "target": "chunk:test-01-marine-policy::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-01-marine-policy::0:entity:marine_safety_policy",
+          "source": "chunk:test-01-marine-policy::0",
+          "target": "entity:marine_safety_policy",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-01-marine-policy::0:entity:organization",
+          "source": "chunk:test-01-marine-policy::0",
+          "target": "entity:organization",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-01-marine-policy::0:entity:marine_operations_effective_date",
+          "source": "chunk:test-01-marine-policy::0",
+          "target": "entity:marine_operations_effective_date",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-01-marine-policy::0:entity:owner",
+          "source": "chunk:test-01-marine-policy::0",
+          "target": "entity:owner",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-01-marine-policy::0:entity:marine_compliance_team_section",
+          "source": "chunk:test-01-marine-policy::0",
+          "target": "entity:marine_compliance_team_section",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-01-marine-policy::0:entity:vessel_classes",
+          "source": "chunk:test-01-marine-policy::0",
+          "target": "entity:vessel_classes",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-01-marine-policy::0:entity:class",
+          "source": "chunk:test-01-marine-policy::0",
+          "target": "entity:class",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:mentions:chunk:test-01-marine-policy::0:entity:section",
+          "source": "chunk:test-01-marine-policy::0",
+          "target": "entity:section",
+          "relation": "mentions",
+          "weight": 1,
+          "attributes": {}
+        }
+      ]
+    },
+    "meta": {
+      "generated_at": 1775944476182,
+      "node_count": 71,
+      "edge_count": 74,
+      "truncated": false,
+      "max_nodes": 80
+    },
+    "validation": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "results": [
+    {
+      "file_id": "test-08-emergency-response-protocol",
+      "filename": "08_emergency_response_protocol.txt",
+      "entity_id": null,
+      "chunk_index": 2,
+      "score": 0.37142857142857144,
+      "distance": 0.628571,
+      "content": "...r: Alice Chen.\n\nContact Directory\n- Safety Director: Alice Chen, +886-2-5555-1200\n- Fleet Manager: Brian Wu\n- Incident Hotline: +886-2-5555-1200\n- Supplier Emergency Line (OceanCore Parts Ltd.): contact via contract SC-88 terms, 24-hour delivery SLA applies.",
+      "entities": [
+        "Step",
+        "Contact Incident Hotline",
+        "Complete",
+        "Section",
+        "Reporting Requirements",
+        "All Level",
+        "Level",
+        "Fleet Manager Brian Wu",
+        "Emergency",
+        "Safety Director",
+        "Crew Readiness",
+        "All",
+        "Module",
+        "Engine Overheating Response",
+        "Incident Communication Escalation",
+        "Vessels",
+        "Current",
+        "Alice Chen",
+        "Contact Directory",
+        "Fleet Manager",
+        "Brian Wu",
+        "Incident Hotline",
+        "Supplier Emergency Line",
+        "Parts Ltd"
+      ]
+    },
+    {
+      "file_id": "test-06-budget-and-procurement-plan",
+      "filename": "06_budget_and_procurement_plan.txt",
+      "entity_id": null,
+      "chunk_index": 0,
+      "score": 0.34285714285714286,
+      "distance": 0.657143,
+      "content": "SEMAA Budget and Procurement Plan BP-2026-H1\n\nDepartment: Marine Operations and Safety\nPrepared By: Finance Lead Irene Kuo\nPeriod: 2026-01-01 to 2026-06-30\n\nBudget Allocation\n- Safety training budget: USD 120,000.\n- Spare parts budget: USD 340,000.\n- Emergency response reserve: USD 80,000.\n\nProcurement Priorities\n- Priority 1: Cooling pump filters CPF-9, target 1,200 units.\n- Priority 2: Relay clamps RC-12, target 30...",
+      "entities": [
+        "Budget",
+        "Procurement Plan",
+        "Department",
+        "Marine Operations",
+        "Safety\nPrepared By",
+        "Finance Lead Irene Kuo\nPeriod",
+        "Budget Allocation",
+        "Safety",
+        "Spare",
+        "Emergency",
+        "Procurement Priorities",
+        "Priority",
+        "Cooling",
+        "Relay",
+        "Lubricant",
+        "Vendor Strategy",
+        "Primary",
+        "Parts Ltd",
+        "Secondary",
+        "Supply Co",
+        "Dual",
+        "Controls",
+        "Thresholds",
+        "Any",
+        "Safety Director",
+        "Monthly",
+        "Milestones",
+        "March",
+        "June"
+      ]
+    },
+    {
+      "file_id": "test-03-supplier-contract",
+      "filename": "03_supplier_contract.txt",
+      "entity_id": null,
+      "chunk_index": 0,
+      "score": 0.3142857142857143,
+      "distance": 0.685714,
+      "content": "Supplier Contract SC-88\n\nBuyer: SEMAA Marine Operations\nSupplier: OceanCore Parts Ltd.\nContract Start: 2026-01-01\nContract End: 2026-12-31\n\nScope\n- Monthly delivery of cooling pump filters.\n- Priority support for overheating incidents.\n\nService Levels\n- Standard delivery: within 5 business days.\n- Emergency delivery: within 24 hours after approved request.\n\nCommercial Terms\n- Unit price for filter model CPF-9: USD 22...",
+      "entities": [
+        "Supplier Contract",
+        "Buyer",
+        "Marine Operations\nSupplier",
+        "Parts Ltd",
+        "Contract Start",
+        "Contract End",
+        "Scope",
+        "Monthly",
+        "Priority",
+        "Service Levels",
+        "Standard",
+        "Emergency",
+        "Commercial Terms",
+        "Unit",
+        "Bulk",
+        "Late",
+        "Contract Contacts",
+        "Brian Wu",
+        "Supplier",
+        "Julia Park\n\nTermination",
+        "Immediate"
+      ]
+    },
+    {
+      "file_id": "test-08-emergency-response-protocol",
+      "filename": "08_emergency_response_protocol.txt",
+      "entity_id": null,
+      "chunk_index": 1,
+      "score": 0.3142857142857143,
+      "distance": 0.685714,
+      "content": "...886-2-5555-1200 within 2 hours.\n- Note: CPF-9 cooling pump filter blockage is the most common root cause. Ensure spare inventory is maintained per supplier contract SC-88 with OceanCore Parts Ltd.\n\nSection 3. Fire Response\n- Step 1: Sound general alarm, broadcast on VHF channel 16.\n- Step 2: Officer on watch declares emergency and initiates muster.\n- Step 3: First response team deploys extinguishers (reference inspec...",
+      "entities": [
+        "Step",
+        "Level",
+        "Submit",
+        "Notify Safety Director Alice Chen",
+        "Note",
+        "Ensure",
+        "Parts Ltd",
+        "Section",
+        "Fire Response",
+        "Sound",
+        "Officer",
+        "First",
+        "Activate",
+        "Man Overboard",
+        "Shout",
+        "Mark",
+        "Contact Incident Hotline",
+        "Complete"
+      ]
+    },
+    {
+      "file_id": "test-02-incident-report",
+      "filename": "02_incident_report.txt",
+      "entity_id": null,
+      "chunk_index": 0,
+      "score": 0.2571428571428572,
+      "distance": 0.742857,
+      "content": "...14:27 Chief engineer initiated cooling protocol.\n- 14:41 Temperature normalized.\n- 15:10 Vessel docked at Keelung auxiliary pier.\n\nActions Taken\n- Emergency inspection request submitted at 15:25.\n- Inspection completed at 19:30 on the same day.\n- Fuel transfer operation postponed to next day.\n\nFindings\n- Cooling pump filter blockage was the direct cause.\n- Last full inspection date was 2026-01-08.\n- Required 30-day c...",
+      "entities": [
+        "Incident Report",
+        "Reported By",
+        "Captain Henry Lin\nDate",
+        "Vessel",
+        "Aurora",
+        "Vessel Class",
+        "Class",
+        "Route",
+        "Keelung",
+        "Hualien\n\nSummary\nAt",
+        "The",
+        "Timeline",
+        "Alert",
+        "Chief",
+        "Temperature",
+        "Actions Taken",
+        "Emergency",
+        "Inspection",
+        "Fuel",
+        "Findings",
+        "Cooling",
+        "Last",
+        "Required",
+        "Assigned Follow",
+        "Fleet Manager Brian Wu",
+        "Safety Director Alice Chen"
+      ]
+    },
+    {
+      "file_id": "test-05-crew-training-record",
+      "filename": "05_crew_training_record.txt",
+      "entity_id": null,
+      "chunk_index": 0,
+      "score": 0.2571428571428572,
+      "distance": 0.742857,
+      "content": "SEMAA Crew Training Record TR-2026-Q1\n\nProgram: Emergency Response and Fuel Transfer Safety\nCoordinator: Alice Chen\nQuarter: 2026 Q1\n\nTraining Modules\n- Module A: Engine overheating response protocol.\n- Module B: Two-person diesel transfer verification.\n- Module C: Incident communication escalation.\n\nAttendance\n- Vessel Aurora-17: 12 attendees, completion rate 100 percent.\n- Vessel Meridian-22: 9 attendees, completio...",
+      "entities": [
+        "Crew Training Record",
+        "Program",
+        "Emergency Response",
+        "Fuel Transfer Safety\nCoordinator",
+        "Alice Chen\nQuarter",
+        "Training Modules",
+        "Module",
+        "Engine",
+        "Two",
+        "Incident",
+        "Attendance",
+        "Vessel Aurora",
+        "Vessel Meridian",
+        "Vessel Orion",
+        "Assessment Scores",
+        "Aurora",
+        "Meridian",
+        "Orion",
+        "Action Items",
+        "All",
+        "Compliance Notes",
+        "Minimum",
+        "Any"
+      ]
+    },
+    {
+      "file_id": "test-08-emergency-response-protocol",
+      "filename": "08_emergency_response_protocol.txt",
+      "entity_id": null,
+      "chunk_index": 0,
+      "score": 0.2571428571428572,
+      "distance": 0.742857,
+      "content": "SEMAA Emergency Response Protocol ERP-2026-01\n\nOrganization: SEMAA Marine Operations\nDocument Type: Operational Protocol\nOwner: Safety Director Alice Chen\nEffective Date: 2026-02-01\nVersion: 1.2\n\nPurpose\nThis protocol defines mandatory response procedures for all declared emergencies aboard SEMAA vessels, including engine casualties, fire, flooding, and man-overboard events. All crew must be familiar with this docume...",
+      "entities": [
+        "Emergency Response Protocol",
+        "Organization",
+        "Marine Operations\nDocument Type",
+        "Operational Protocol\nOwner",
+        "Safety Director Alice Chen\nEffective Date",
+        "Version",
+        "Purpose\nThis",
+        "All",
+        "Section",
+        "Emergency Classification",
+        "Level",
+        "Minor",
+        "Contained",
+        "Managed",
+        "Serious",
+        "Incident",
+        "Requires",
+        "Fleet Manager Brian Wu",
+        "Critical",
+        "Imminent",
+        "Engine Overheating Response",
+        "Step",
+        "Reduce",
+        "Chief",
+        "Submit"
+      ]
+    },
+    {
+      "file_id": "test-01-marine-policy",
+      "filename": "01_marine_policy.txt",
+      "entity_id": null,
+      "chunk_index": 0,
+      "score": 0.2285714285714286,
+      "distance": 0.771429,
+      "content": "...ection Cadence\n- Class A vessels must complete a full inspection every 30 days.\n- Class B vessels must complete a full inspection every 14 days.\n- Emergency inspection is mandatory within 24 hours after any engine overheating event.\n\nSection 3. Critical Contacts\n- Safety Director: Alice Chen\n- Fleet Manager: Brian Wu\n- Incident Hotline: +886-2-5555-1200\n\nSection 4. Fuel Handling\n- Diesel transfer requires two-person ...",
+      "entities": [
+        "Marine Safety Policy",
+        "Organization",
+        "Marine Operations\nEffective Date",
+        "Owner",
+        "Marine Compliance Team\n\nSection",
+        "Vessel Classes",
+        "Class",
+        "Section",
+        "Inspection Cadence",
+        "Emergency",
+        "Critical Contacts",
+        "Safety Director",
+        "Alice Chen",
+        "Fleet Manager",
+        "Brian Wu",
+        "Incident Hotline",
+        "Fuel Handling",
+        "Diesel",
+        "Maximum",
+        "Any",
+        "Non",
+        "Compliance Actions",
+        "First",
+        "Second",
+        "Third"
+      ]
+    }
+  ]
+}

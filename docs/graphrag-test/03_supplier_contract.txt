@@ -1,0 +1,27 @@
+Supplier Contract SC-88
+
+Buyer: SEMAA Marine Operations
+Supplier: OceanCore Parts Ltd.
+Contract Start: 2026-01-01
+Contract End: 2026-12-31
+
+Scope
+- Monthly delivery of cooling pump filters.
+- Priority support for overheating incidents.
+
+Service Levels
+- Standard delivery: within 5 business days.
+- Emergency delivery: within 24 hours after approved request.
+
+Commercial Terms
+- Unit price for filter model CPF-9: USD 220.
+- Bulk discount applies for orders above 200 units per month.
+- Late delivery penalty: 2 percent invoice deduction per delayed day, capped at 20 percent.
+
+Contract Contacts
+- SEMAA contact: Brian Wu
+- Supplier contact: Julia Park
+
+Termination
+- Buyer may terminate with 30-day notice for repeated SLA breach.
+- Immediate termination allowed for falsified quality certification.

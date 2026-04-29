@@ -1,0 +1,31 @@
+SEMAA Incident Report IR-2026-003
+
+Reported By: Captain Henry Lin
+Date: 2026-02-03
+Vessel: Aurora-17
+Vessel Class: Class A
+Route: Keelung to Hualien
+
+Summary
+At 14:20 local time, the main engine temperature exceeded threshold and triggered an overheating alert.
+The vessel reduced speed and returned to nearest safe harbor.
+
+Timeline
+- 14:20 Alert triggered by engine monitoring system.
+- 14:27 Chief engineer initiated cooling protocol.
+- 14:41 Temperature normalized.
+- 15:10 Vessel docked at Keelung auxiliary pier.
+
+Actions Taken
+- Emergency inspection request submitted at 15:25.
+- Inspection completed at 19:30 on the same day.
+- Fuel transfer operation postponed to next day.
+
+Findings
+- Cooling pump filter blockage was the direct cause.
+- Last full inspection date was 2026-01-08.
+- Required 30-day class inspection was still within valid period.
+
+Assigned Follow-ups
+- Fleet Manager Brian Wu to verify spare filter inventory by 2026-02-05.
+- Safety Director Alice Chen to review emergency response drill cadence.

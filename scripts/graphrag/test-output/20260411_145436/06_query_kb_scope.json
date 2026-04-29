@@ -1,0 +1,274 @@
+{
+  "status": "ok",
+  "action": "queried",
+  "count": 8,
+  "controls": {
+    "top_k": 8,
+    "min_score": 0,
+    "max_nodes": 40,
+    "auto_tuned": false
+  },
+  "results": [
+    {
+      "file_id": "test-08-emergency-response-protocol",
+      "filename": "08_emergency_response_protocol.txt",
+      "chunk_index": 2,
+      "score": 0.4,
+      "distance": 0.6,
+      "content": "...ubmitted within 48 hours.\n- Emergency reserve fund activation above USD 20,000 requires notification to Safety Director within 12 hours per budget policy BP-2026-H1.\n\nSection 6. Crew Readiness\n- All crew must complete Module A (Engine Overheating Response) ..."
+    },
+    {
+      "file_id": "test-06-budget-and-procurement-plan",
+      "filename": "06_budget_and_procurement_plan.txt",
+      "chunk_index": 0,
+      "score": 0.33333333333333337,
+      "distance": 0.666667,
+      "content": "... 1,500 liters.\n\nVendor Strategy\n- Primary vendor for CPF-9: OceanCore Parts Ltd.\n- Secondary vendor for CPF-9: HarborTech Supply Co.\n- Dual-vendor policy required for all critical engine components.\n\nControls and Thresholds\n- Any single PO above USD 50,000 ..."
+    },
+    {
+      "file_id": "test-01-marine-policy",
+      "filename": "01_marine_policy.txt",
+      "chunk_index": 0,
+      "score": 0.30000000000000004,
+      "distance": 0.7,
+      "content": "SEMAA Marine Safety Policy v1.0\n\nOrganization: SEMAA Marine Operations\nEffective Date: 2026-01-15\nOwner: Marine Compliance Team\n\nSection 1. Vessel Classes\n- Class A vessels: coastal survey boats under 40 meters.\n- Class B vessels: offshore support vessels over..."
+    },
+    {
+      "file_id": "test-07-vessel-inspection-checklist",
+      "filename": "07_vessel_inspection_checklist.txt",
+      "chunk_index": 2,
+      "score": 0.30000000000000004,
+      "distance": 0.7,
+      "content": "...for current operation.\n- Inspect transfer hose for cracks and confirm all valves are correctly labeled.\n- Set timer reminder at 70-minute mark per policy requirement.\n\nCompletion and Sign-Off\n- Inspector Name: ___________________________\n- Inspection Date: ..."
+    },
+    {
+      "file_id": "test-03-supplier-contract",
+      "filename": "03_supplier_contract.txt",
+      "chunk_index": 0,
+      "score": 0.26666666666666666,
+      "distance": 0.733333,
+      "content": "Supplier Contract SC-88\n\nBuyer: SEMAA Marine Operations\nSupplier: OceanCore Parts Ltd.\nContract Start: 2026-01-01\nContract End: 2026-12-31\n\nScope\n- Monthly delivery of cooling pump filters.\n- Priority support for overheating incidents.\n\nService Levels\n- Standa..."
+    },
+    {
+      "file_id": "test-05-crew-training-record",
+      "filename": "05_crew_training_record.txt",
+      "chunk_index": 0,
+      "score": 0.26666666666666666,
+      "distance": 0.733333,
+      "content": "SEMAA Crew Training Record TR-2026-Q1\n\nProgram: Emergency Response and Fuel Transfer Safety\nCoordinator: Alice Chen\nQuarter: 2026 Q1\n\nTraining Modules\n- Module A: Engine overheating response protocol.\n- Module B: Two-person diesel transfer verification.\n- Modu..."
+    },
+    {
+      "file_id": "test-07-vessel-inspection-checklist",
+      "filename": "07_vessel_inspection_checklist.txt",
+      "chunk_index": 1,
+      "score": 0.26666666666666666,
+      "distance": 0.733333,
+      "content": "...sure gauges are in green zone.\n- Confirm flare kit is within expiry date and stowed in designated locker.\n\nSection 5. Electrical Systems\n- Inspect emergency power relay panel; check all terminals for tightness (reference slot E-4 from PM-2026-014 findings)...."
+    },
+    {
+      "file_id": "test-08-emergency-response-protocol",
+      "filename": "08_emergency_response_protocol.txt",
+      "chunk_index": 1,
+      "score": 0.26666666666666666,
+      "distance": 0.733333,
+      "content": "...- Step 2: Officer on watch declares emergency and initiates muster.\n- Step 3: First response team deploys extinguishers (reference inspection checklist IC-2026-V1 for extinguisher locations).\n- Step 4: If fire is not contained within 5 minutes, issue MAYDAY..."
+    }
+  ],
+  "graph": {
+    "contract": {
+      "name": "semaa.graphrag.graph",
+      "version": "1.0.0"
+    },
+    "query": "List the major policy, contract, budget, training, and emergency topics covered by the current knowledge base.",
+    "filters": {
+      "file_ids": []
+    },
+    "subgraph": {
+      "nodes": [
+        {
+          "id": "doc:test-08-emergency-response-protocol",
+          "label": "08_emergency_response_protocol.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {
+            "file_id": "test-08-emergency-response-protocol",
+            "filename": "08_emergency_response_protocol.txt"
+          }
+        },
+        {
+          "id": "doc:test-06-budget-and-procurement-plan",
+          "label": "06_budget_and_procurement_plan.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {
+            "file_id": "test-06-budget-and-procurement-plan",
+            "filename": "06_budget_and_procurement_plan.txt"
+          }
+        },
+        {
+          "id": "doc:test-01-marine-policy",
+          "label": "01_marine_policy.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-01-marine-policy"
+          ],
+          "attributes": {
+            "file_id": "test-01-marine-policy",
+            "filename": "01_marine_policy.txt"
+          }
+        },
+        {
+          "id": "doc:test-07-vessel-inspection-checklist",
+          "label": "07_vessel_inspection_checklist.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-07-vessel-inspection-checklist"
+          ],
+          "attributes": {
+            "file_id": "test-07-vessel-inspection-checklist",
+            "filename": "07_vessel_inspection_checklist.txt"
+          }
+        },
+        {
+          "id": "doc:test-03-supplier-contract",
+          "label": "03_supplier_contract.txt",
+          "type": "document",
+          "score": null,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {
+            "file_id": "test-03-supplier-contract",
+            "filename": "03_supplier_contract.txt"
+          }
+        },
+        {
+          "id": "chunk:test-08-emergency-response-protocol::2",
+          "label": "Chunk 2",
+          "type": "chunk",
+          "score": 0.4,
+          "source_docs": [
+            "test-08-emergency-response-protocol"
+          ],
+          "attributes": {
+            "file_id": "test-08-emergency-response-protocol",
+            "chunk_index": 2
+          }
+        },
+        {
+          "id": "chunk:test-06-budget-and-procurement-plan::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.333333,
+          "source_docs": [
+            "test-06-budget-and-procurement-plan"
+          ],
+          "attributes": {
+            "file_id": "test-06-budget-and-procurement-plan",
+            "chunk_index": 0
+          }
+        },
+        {
+          "id": "chunk:test-01-marine-policy::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.3,
+          "source_docs": [
+            "test-01-marine-policy"
+          ],
+          "attributes": {
+            "file_id": "test-01-marine-policy",
+            "chunk_index": 0
+          }
+        },
+        {
+          "id": "chunk:test-07-vessel-inspection-checklist::2",
+          "label": "Chunk 2",
+          "type": "chunk",
+          "score": 0.3,
+          "source_docs": [
+            "test-07-vessel-inspection-checklist"
+          ],
+          "attributes": {
+            "file_id": "test-07-vessel-inspection-checklist",
+            "chunk_index": 2
+          }
+        },
+        {
+          "id": "chunk:test-03-supplier-contract::0",
+          "label": "Chunk 0",
+          "type": "chunk",
+          "score": 0.266667,
+          "source_docs": [
+            "test-03-supplier-contract"
+          ],
+          "attributes": {
+            "file_id": "test-03-supplier-contract",
+            "chunk_index": 0
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge:contains:doc:test-08-emergency-response-protocol:chunk:test-08-emergency-response-protocol::2",
+          "source": "doc:test-08-emergency-response-protocol",
+          "target": "chunk:test-08-emergency-response-protocol::2",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-06-budget-and-procurement-plan:chunk:test-06-budget-and-procurement-plan::0",
+          "source": "doc:test-06-budget-and-procurement-plan",
+          "target": "chunk:test-06-budget-and-procurement-plan::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-01-marine-policy:chunk:test-01-marine-policy::0",
+          "source": "doc:test-01-marine-policy",
+          "target": "chunk:test-01-marine-policy::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-07-vessel-inspection-checklist:chunk:test-07-vessel-inspection-checklist::2",
+          "source": "doc:test-07-vessel-inspection-checklist",
+          "target": "chunk:test-07-vessel-inspection-checklist::2",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        },
+        {
+          "id": "edge:contains:doc:test-03-supplier-contract:chunk:test-03-supplier-contract::0",
+          "source": "doc:test-03-supplier-contract",
+          "target": "chunk:test-03-supplier-contract::0",
+          "relation": "contains",
+          "weight": 1,
+          "attributes": {}
+        }
+      ]
+    },
+    "meta": {
+      "generated_at": 1775944476172,
+      "node_count": 10,
+      "edge_count": 5,
+      "truncated": true,
+      "max_nodes": 10
+    },
+    "validation": {
+      "valid": true,
+      "errors": []
+    }
+  }
+}

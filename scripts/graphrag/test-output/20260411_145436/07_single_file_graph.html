@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Single File Graph Query</title>
+  <script src="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.js"></script>
+  <style>
+    body { margin: 0; background: #11151c; color: #e8e8e8; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; }
+    .wrap { padding: 12px; }
+    h1 { margin: 0 0 8px; font-size: 18px; }
+    p { margin: 0 0 12px; color: #a8b0b8; }
+    #graph { width: 100%; height: 78vh; border: 1px solid #2a3138; border-radius: 8px; background: #0f1318; }
+    .meta { margin-top: 10px; font-size: 12px; color: #9aa4ad; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Single File Graph Query</h1>
+    <p>GraphRAG query visualization</p>
+    <div id="graph"></div>
+    <div class="meta">nodes: 10 | edges: 9</div>
+  </div>
+  <script>
+    const nodes = new vis.DataSet([{"id":"doc:test-03-supplier-contract","label":"03_supplier_contract.txt","title":"{\n  \"id\": \"doc:test-03-supplier-contract\",\n  \"label\": \"03_supplier_contract.txt\",\n  \"type\": \"document\",\n  \"score\": null,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {\n    \"file_id\": \"test-03-supplier-contract\",\n    \"filename\": \"03_supplier_contract.txt\"\n  }\n}","color":"#4f8ef7","shape":"ellipse","font":{"color":"#f3f3f3"}},{"id":"chunk:test-03-supplier-contract::0","label":"Chunk 0","title":"{\n  \"id\": \"chunk:test-03-supplier-contract::0\",\n  \"label\": \"Chunk 0\",\n  \"type\": \"chunk\",\n  \"score\": 0.333333,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {\n    \"file_id\": \"test-03-supplier-contract\",\n    \"chunk_index\": 0\n  }\n}","color":"#d16ba5","shape":"ellipse","font":{"color":"#f3f3f3"}},{"id":"entity:supplier_contract","label":"Supplier Contract","title":"{\n  \"id\": \"entity:supplier_contract\",\n  \"label\": \"Supplier Contract\",\n  \"type\": \"entity\",\n  \"score\": 0.333333,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {}\n}","color":"#f6b73c","shape":"dot","font":{"color":"#f3f3f3"}},{"id":"entity:buyer","label":"Buyer","title":"{\n  \"id\": \"entity:buyer\",\n  \"label\": \"Buyer\",\n  \"type\": \"entity\",\n  \"score\": 0.333333,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {}\n}","color":"#f6b73c","shape":"dot","font":{"color":"#f3f3f3"}},{"id":"entity:marine_operations_supplier","label":"Marine Operations\nSupplier","title":"{\n  \"id\": \"entity:marine_operations_supplier\",\n  \"label\": \"Marine Operations\\nSupplier\",\n  \"type\": \"entity\",\n  \"score\": 0.333333,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {}\n}","color":"#f6b73c","shape":"dot","font":{"color":"#f3f3f3"}},{"id":"entity:parts_ltd","label":"Parts Ltd","title":"{\n  \"id\": \"entity:parts_ltd\",\n  \"label\": \"Parts Ltd\",\n  \"type\": \"entity\",\n  \"score\": 0.333333,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {}\n}","color":"#f6b73c","shape":"dot","font":{"color":"#f3f3f3"}},{"id":"entity:contract_start","label":"Contract Start","title":"{\n  \"id\": \"entity:contract_start\",\n  \"label\": \"Contract Start\",\n  \"type\": \"entity\",\n  \"score\": 0.333333,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {}\n}","color":"#f6b73c","shape":"dot","font":{"color":"#f3f3f3"}},{"id":"entity:contract_end","label":"Contract End","title":"{\n  \"id\": \"entity:contract_end\",\n  \"label\": \"Contract End\",\n  \"type\": \"entity\",\n  \"score\": 0.333333,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {}\n}","color":"#f6b73c","shape":"dot","font":{"color":"#f3f3f3"}},{"id":"entity:scope","label":"Scope","title":"{\n  \"id\": \"entity:scope\",\n  \"label\": \"Scope\",\n  \"type\": \"entity\",\n  \"score\": 0.333333,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {}\n}","color":"#f6b73c","shape":"dot","font":{"color":"#f3f3f3"}},{"id":"entity:monthly","label":"Monthly","title":"{\n  \"id\": \"entity:monthly\",\n  \"label\": \"Monthly\",\n  \"type\": \"entity\",\n  \"score\": 0.333333,\n  \"source_docs\": [\n    \"test-03-supplier-contract\"\n  ],\n  \"attributes\": {}\n}","color":"#f6b73c","shape":"dot","font":{"color":"#f3f3f3"}}]);
+    const edges = new vis.DataSet([{"from":"doc:test-03-supplier-contract","to":"chunk:test-03-supplier-contract::0","label":"contains","arrows":"to","color":"#7f8c8d","font":{"align":"middle","color":"#d0d0d0","size":11}},{"from":"chunk:test-03-supplier-contract::0","to":"entity:supplier_contract","label":"mentions","arrows":"to","color":"#7f8c8d","font":{"align":"middle","color":"#d0d0d0","size":11}},{"from":"chunk:test-03-supplier-contract::0","to":"entity:buyer","label":"mentions","arrows":"to","color":"#7f8c8d","font":{"align":"middle","color":"#d0d0d0","size":11}},{"from":"chunk:test-03-supplier-contract::0","to":"entity:marine_operations_supplier","label":"mentions","arrows":"to","color":"#7f8c8d","font":{"align":"middle","color":"#d0d0d0","size":11}},{"from":"chunk:test-03-supplier-contract::0","to":"entity:parts_ltd","label":"mentions","arrows":"to","color":"#7f8c8d","font":{"align":"middle","color":"#d0d0d0","size":11}},{"from":"chunk:test-03-supplier-contract::0","to":"entity:contract_start","label":"mentions","arrows":"to","color":"#7f8c8d","font":{"align":"middle","color":"#d0d0d0","size":11}},{"from":"chunk:test-03-supplier-contract::0","to":"entity:contract_end","label":"mentions","arrows":"to","color":"#7f8c8d","font":{"align":"middle","color":"#d0d0d0","size":11}},{"from":"chunk:test-03-supplier-contract::0","to":"entity:scope","label":"mentions","arrows":"to","color":"#7f8c8d","font":{"align":"middle","color":"#d0d0d0","size":11}},{"from":"chunk:test-03-supplier-contract::0","to":"entity:monthly","label":"mentions","arrows":"to","color":"#7f8c8d","font":{"align":"middle","color":"#d0d0d0","size":11}}]);
+    const container = document.getElementById('graph');
+    const data = { nodes, edges };
+    const options = {
+      physics: { solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -45 } },
+      interaction: { hover: true, navigationButtons: true, keyboard: true },
+      edges: { smooth: true },
+    };
+    new vis.Network(container, data, options);
+  </script>
+</body>
+</html>

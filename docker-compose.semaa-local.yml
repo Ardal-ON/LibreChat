@@ -10,3 +10,25 @@ services:
       dockerfile: Dockerfile.multi
       target: api-build
     image: librechat-semaa-api:local
+    environment:
+      - GRAPH_RAG_PORT=${GRAPH_RAG_PORT:-8001}
+      - GRAPH_RAG_API_URL=http://graphrag_api:${GRAPH_RAG_PORT:-8001}
+    volumes:
+      - ./api/graphrag:/app/api/graphrag:ro
+      - graphrag-data:/app/api/data/graphrag
+
+  graphrag_api:
+    image: librechat-semaa-api:local
+    container_name: graphrag_api
+    command: node /app/api/graphrag/server.js
+    restart: always
+    environment:
+      - GRAPH_RAG_PORT=${GRAPH_RAG_PORT:-8001}
+      - GRAPH_RAG_STORE_DIR=/app/api/data/graphrag
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ./api/graphrag:/app/api/graphrag:ro
+      - graphrag-data:/app/api/data/graphrag
+
+volumes:
+  graphrag-data:

@@ -181,6 +181,34 @@ describe('formatToolContent', () => {
       expect(uiResourceArtifact?.resourceId).toEqual(expect.any(String));
     });
 
+    it('should avoid UI markers for graphrag graph resources', () => {
+      const result: t.MCPToolCallResponse = {
+        content: [
+          {
+            type: 'resource',
+            resource: {
+              uri: 'ui://graphrag/graph/graph_test_123',
+              mimeType: 'application/json',
+              text: '{"graph": {"subgraph": {"nodes": [], "edges": []}}}',
+            },
+          },
+        ],
+      };
+
+      const [content, artifacts] = formatToolContent(result, 'openai');
+      expect(content).toContain('Resource URI: ui://graphrag/graph/graph_test_123');
+      expect(content).toContain('Resource MIME Type: application/json');
+      expect(content).not.toContain('UI Resource Marker: \\ui{');
+      expect(content).not.toContain('UI Resource Markers Available:');
+
+      const uiResourceArtifact = artifacts?.ui_resources?.data?.[0];
+      expect(uiResourceArtifact).toMatchObject({
+        uri: 'ui://graphrag/graph/graph_test_123',
+        mimeType: 'application/json',
+      });
+      expect(uiResourceArtifact?.resourceId).toEqual(expect.any(String));
+    });
+
     it('should handle regular resources', () => {
       const result: t.MCPToolCallResponse = {
         content: [

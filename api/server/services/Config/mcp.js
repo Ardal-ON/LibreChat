@@ -1,5 +1,6 @@
 const { logger } = require('@librechat/data-schemas');
 const { CacheKeys, Constants } = require('librechat-data-provider');
+const { normalizeServerName } = require('@librechat/api');
 const { getCachedTools, setCachedTools } = require('./getCachedTools');
 const { getLogStores } = require('~/cache');
 
@@ -21,8 +22,10 @@ async function updateMCPServerTools({ userId, serverName, tools }) {
       return serverTools;
     }
 
+    const normalizedServerName = normalizeServerName(serverName);
+
     for (const tool of tools) {
-      const name = `${tool.name}${mcpDelimiter}${serverName}`;
+      const name = `${tool.name}${mcpDelimiter}${normalizedServerName}`;
       serverTools[name] = {
         type: 'function',
         ['function']: {

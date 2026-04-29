@@ -22,6 +22,7 @@ const {
   OAUTH_CSRF_COOKIE,
   setOAuthCsrfCookie,
   generateCheckAccess,
+  normalizeServerName,
   isEnabled,
   validateOAuthSession,
   OAUTH_SESSION_COOKIE,
@@ -40,11 +41,16 @@ const {
   getFlowStateManager,
   getMCPManager,
 } = require('~/config');
-const { getMCPSetupData, getServerConnectionStatus } = require('~/server/services/MCP');
+const {
+  createMCPTool,
+  getMCPSetupData,
+  getServerConnectionStatus,
+} = require('~/server/services/MCP');
 const { requireJwtAuth, canAccessMCPServerResource } = require('~/server/middleware');
 const db = require('~/models');
 const { getUserPluginAuthValue } = require('~/server/services/PluginService');
 const { updateMCPServerTools } = require('~/server/services/Config/mcp');
+const { getCachedTools } = require('~/server/services/Config');
 const { reinitMCPServer } = require('~/server/services/Tools/mcp');
 const { getLogStores } = require('~/cache');
 const { mcpTokenRegistry } = require('~/server/services/MCPTokenRegistry');
@@ -893,6 +899,82 @@ async function getOAuthHeaders(serverName, userId) {
   const serverConfig = await getMCPServersRegistry().getServerConfig(serverName, userId);
   return serverConfig?.oauth_headers ?? {};
 }
+
+router.post(
+  '/:serverName/tools/:toolName/call',
+  requireJwtAuth,
+  checkMCPUsePermissions,
+  setOAuthSession,
+  async (req, res) => {
+    try {
+      const user = createSafeUser(req.user);
+      const { serverName, toolName } = req.params;
+
+      if (!user.id) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const serverConfig = await getMCPServersRegistry().getServerConfig(serverName, user.id);
+      if (!serverConfig) {
+        return res.status(404).json({ error: `MCP server '${serverName}' not found` });
+      }
+
+      /** @type {Record<string, Record<string, string>> | undefined} */
+      let userMCPAuthMap;
+      if (serverConfig.customUserVars && typeof serverConfig.customUserVars === 'object') {
+        userMCPAuthMap = await getUserMCPAuthMap({
+          userId: user.id,
+          servers: [serverName],
+          findPluginAuthsByKeys: db.findPluginAuthsByKeys,
+        });
+      }
+
+      const normalizedServerName = normalizeServerName(serverName);
+      const toolKey = `${toolName}${Constants.mcp_delimiter}${normalizedServerName}`;
+
+      const cachedAvailableTools = await getCachedTools({ userId: user.id, serverName });
+
+      const tool = await createMCPTool({
+        res,
+        user,
+        toolKey,
+        userMCPAuthMap,
+        availableTools: cachedAvailableTools ?? undefined,
+      });
+
+      if (!tool) {
+        return res.status(404).json({ error: `MCP tool '${toolName}' not found` });
+      }
+
+      const result = await tool.invoke(req.body ?? {}, {
+        configurable: {
+          user,
+          requestBody: req.body,
+          userMCPAuthMap,
+        },
+        metadata: {
+          provider: 'agents',
+          thread_id: req.body?.conversationId ?? 'graphrag-progress',
+          run_id: req.body?.messageId ?? `graphrag-progress-${Date.now()}`,
+        },
+        toolCall: {
+          id: `graphrag-progress-${Date.now()}`,
+          name: toolKey,
+          args: req.body ?? {},
+          type: 'tool_call',
+        },
+      });
+
+      return res.status(200).json({ result });
+    } catch (error) {
+      logger.error('[MCP Tool Call] Failed to execute MCP tool', error);
+      return res.status(500).json({
+        error: 'Failed to execute MCP tool',
+        message: error.message,
+      });
+    }
+  },
+);
 
 /**
 MCP Server CRUD Routes (User-Managed MCP Servers)

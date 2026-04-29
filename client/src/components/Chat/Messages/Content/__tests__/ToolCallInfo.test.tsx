@@ -1,10 +1,13 @@
 import React from 'react';
-import { Tools } from 'librechat-data-provider';
+import { Constants, dataService, Tools } from 'librechat-data-provider';
 import { UIResourceRenderer } from '@mcp-ui/client';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { TAttachment } from 'librechat-data-provider';
 import UIResourceCarousel from '~/components/Chat/Messages/Content/UIResourceCarousel';
 import ToolCallInfo from '~/components/Chat/Messages/Content/ToolCallInfo';
+import { getGraphPayloadCacheKey } from '~/components/Chat/Messages/Content/ToolOutput/GraphRAGOutput';
+
+jest.mock('react-cytoscapejs', () => () => <div data-testid="mock-cytoscape" />);
 
 // Mock the dependencies
 jest.mock('~/hooks', () => ({
@@ -59,6 +62,7 @@ describe('ToolCallInfo', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
   });
 
   describe('ui_resources from attachments', () => {
@@ -212,6 +216,174 @@ describe('ToolCallInfo', () => {
         }),
         expect.any(Object),
       );
+    });
+
+    it('should render graph from cache when output is summarized', () => {
+      const input = JSON.stringify({
+        query: 'summary fallback test',
+        top_k: 8,
+      });
+      const key = getGraphPayloadCacheKey(input, 'graphrag_query_with_graph');
+      const payload = {
+        graph: {
+          subgraph: {
+            nodes: [{ id: 'n1', label: 'Node 1', type: 'entity' }],
+            edges: [{ id: 'e1', source: 'n1', target: 'n1', relation: 'related_to' }],
+          },
+        },
+      };
+
+      localStorage.setItem(key, JSON.stringify(payload));
+
+      render(
+        <ToolCallInfo
+          input={input}
+          output="Conversation summarized"
+          toolName="graphrag_query_with_graph"
+        />,
+      );
+
+      expect(screen.getByText('Knowledge Graph')).toBeInTheDocument();
+      expect(screen.queryByTestId('output-renderer')).not.toBeInTheDocument();
+    });
+
+    it('should render graph from ui_resources as primary channel', () => {
+      const payload = {
+        graph: {
+          subgraph: {
+            nodes: [{ id: 'n1', label: 'Node 1', type: 'entity' }],
+            edges: [{ id: 'e1', source: 'n1', target: 'n1', relation: 'related_to' }],
+          },
+        },
+      };
+
+      const attachments: TAttachment[] = [
+        {
+          type: Tools.ui_resources,
+          messageId: 'msg-graph',
+          toolCallId: 'tool-graph',
+          conversationId: 'conv-graph',
+          [Tools.ui_resources]: [
+            {
+              resourceId: 'gr1',
+              uri: 'ui://graphrag/graph/graph_abc123',
+              mimeType: 'application/json',
+              text: JSON.stringify(payload),
+            },
+          ] as any,
+        },
+      ];
+
+      render(
+        <ToolCallInfo
+          input={mockProps.input}
+          output="Graph generated and attached via ui_resources."
+          toolName={`graphrag_query_with_graph${Constants.mcp_delimiter}semaa-graphrag-mcp`}
+          attachments={attachments}
+        />,
+      );
+
+      expect(screen.getByText('Knowledge Graph')).toBeInTheDocument();
+      expect(screen.queryByTestId('output-renderer')).not.toBeInTheDocument();
+    });
+
+    it('should hide contains and mentions relations by default', () => {
+      const payload = {
+        graph: {
+          subgraph: {
+            nodes: [
+              { id: 'doc1', label: 'Doc', type: 'document' },
+              { id: 'chunk1', label: 'Chunk 1', type: 'chunk' },
+              { id: 'dorothy', label: 'Dorothy', type: 'entity' },
+              { id: 'glinda', label: 'Glinda', type: 'entity' },
+            ],
+            edges: [
+              { id: 'e1', source: 'doc1', target: 'chunk1', relation: 'contains' },
+              { id: 'e2', source: 'chunk1', target: 'dorothy', relation: 'mentions' },
+              { id: 'e3', source: 'dorothy', target: 'glinda', relation: 'advised_by' },
+            ],
+          },
+        },
+      };
+
+      const attachments: TAttachment[] = [
+        {
+          type: Tools.ui_resources,
+          messageId: 'msg-graph-hidden-relations',
+          toolCallId: 'tool-graph-hidden-relations',
+          conversationId: 'conv-graph-hidden-relations',
+          [Tools.ui_resources]: [
+            {
+              resourceId: 'gr-hidden-relations',
+              uri: 'ui://graphrag/graph/graph_hidden_relations',
+              mimeType: 'application/json',
+              text: JSON.stringify(payload),
+            },
+          ] as any,
+        },
+      ];
+
+      render(
+        <ToolCallInfo
+          input={mockProps.input}
+          output="Graph generated and attached via ui_resources."
+          toolName={`graphrag_query_with_graph${Constants.mcp_delimiter}semaa-graphrag-mcp`}
+          attachments={attachments}
+        />,
+      );
+
+      expect(screen.getByText('2 nodes | 1 edges')).toBeInTheDocument();
+      expect(screen.queryByText('4 nodes | 3 edges')).not.toBeInTheDocument();
+    });
+
+    it('should refetch graph by graph_id when attachment is missing', async () => {
+      const payload = {
+        graph: {
+          subgraph: {
+            nodes: [{ id: 'n2', label: 'Node 2', type: 'entity' }],
+            edges: [{ id: 'e2', source: 'n2', target: 'n2', relation: 'related_to' }],
+          },
+        },
+      };
+
+      jest.spyOn(dataService, 'callMCPTool').mockResolvedValueOnce({
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: 'Graph payload restored from server cache via graph_id.',
+            },
+            {
+              type: 'resource',
+              resource: {
+                uri: 'ui://graphrag/graph/graph_refetch_001',
+                mimeType: 'application/json',
+                text: JSON.stringify(payload),
+              },
+            },
+          ],
+        },
+      } as any);
+
+      render(
+        <ToolCallInfo
+          input={mockProps.input}
+          output="graph_id: graph_refetch_001"
+          toolName={`graphrag_query_with_graph${Constants.mcp_delimiter}semaa-graphrag-mcp`}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(dataService.callMCPTool).toHaveBeenCalledWith(
+          'semaa-graphrag-mcp',
+          'graphrag_get_graph_by_id',
+          expect.objectContaining({ graph_id: 'graph_refetch_001' }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Knowledge Graph')).toBeInTheDocument();
+      });
     });
   });
 

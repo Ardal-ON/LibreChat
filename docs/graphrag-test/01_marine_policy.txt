@@ -1,0 +1,29 @@
+SEMAA Marine Safety Policy v1.0
+
+Organization: SEMAA Marine Operations
+Effective Date: 2026-01-15
+Owner: Marine Compliance Team
+
+Section 1. Vessel Classes
+- Class A vessels: coastal survey boats under 40 meters.
+- Class B vessels: offshore support vessels over 40 meters.
+
+Section 2. Inspection Cadence
+- Class A vessels must complete a full inspection every 30 days.
+- Class B vessels must complete a full inspection every 14 days.
+- Emergency inspection is mandatory within 24 hours after any engine overheating event.
+
+Section 3. Critical Contacts
+- Safety Director: Alice Chen
+- Fleet Manager: Brian Wu
+- Incident Hotline: +886-2-5555-1200
+
+Section 4. Fuel Handling
+- Diesel transfer requires two-person confirmation.
+- Maximum transfer window is 90 minutes.
+- Any transfer over 70 minutes must be annotated in transfer log.
+
+Section 5. Non-Compliance Actions
+- First violation: written warning and corrective training within 7 days.
+- Second violation: temporary vessel suspension up to 72 hours.
+- Third violation: escalation to executive compliance board.

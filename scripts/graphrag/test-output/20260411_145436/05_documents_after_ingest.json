@@ -1,0 +1,62 @@
+{
+  "status": "ok",
+  "count": 8,
+  "documents": [
+    {
+      "file_id": "test-01-marine-policy",
+      "filename": "01_marine_policy.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775944476135
+    },
+    {
+      "file_id": "test-02-incident-report",
+      "filename": "02_incident_report.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775944476139
+    },
+    {
+      "file_id": "test-03-supplier-contract",
+      "filename": "03_supplier_contract.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775944476142
+    },
+    {
+      "file_id": "test-04-port-maintenance-log",
+      "filename": "04_port_maintenance_log.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775944476146
+    },
+    {
+      "file_id": "test-05-crew-training-record",
+      "filename": "05_crew_training_record.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775944476149
+    },
+    {
+      "file_id": "test-06-budget-and-procurement-plan",
+      "filename": "06_budget_and_procurement_plan.txt",
+      "entity_id": null,
+      "chunkCount": 1,
+      "updatedAt": 1775944476153
+    },
+    {
+      "file_id": "test-07-vessel-inspection-checklist",
+      "filename": "07_vessel_inspection_checklist.txt",
+      "entity_id": null,
+      "chunkCount": 4,
+      "updatedAt": 1775944476158
+    },
+    {
+      "file_id": "test-08-emergency-response-protocol",
+      "filename": "08_emergency_response_protocol.txt",
+      "entity_id": null,
+      "chunkCount": 3,
+      "updatedAt": 1775944476162
+    }
+  ]
+}

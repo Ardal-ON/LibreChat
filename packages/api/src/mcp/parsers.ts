@@ -47,6 +47,10 @@ function isImageContent(item: t.ToolContentPart): item is t.ImageContent {
   return item.type === 'image';
 }
 
+function isGraphRAGGraphUIResourceUri(uri: string): boolean {
+  return uri.startsWith('ui://graphrag/graph/');
+}
+
 function parseAsString(result: t.MCPToolCallResponse): string {
   const content = result?.content ?? [];
   if (!content.length) {
@@ -103,6 +107,7 @@ export function formatToolContent(
 
   const imageUrls: t.FormattedContent[] = [];
   const uiResources: UIResource[] = [];
+  let markerEligibleUIResourceCount = 0;
   let currentTextBlock = '';
 
   type ContentHandler = undefined | ((item: t.ToolContentPart) => void);
@@ -130,6 +135,7 @@ export function formatToolContent(
 
     resource: (item) => {
       const isUiResource = item.resource.uri.startsWith('ui://');
+      const isGraphRAGGraphResource = isGraphRAGGraphUIResourceUri(item.resource.uri);
       const resourceText: string[] = [];
 
       if (isUiResource) {
@@ -143,8 +149,12 @@ export function formatToolContent(
           resourceId,
         };
         uiResources.push(uiResource);
-        resourceText.push(`UI Resource ID: ${resourceId}`);
-        resourceText.push(`UI Resource Marker: \\ui{${resourceId}}`);
+
+        if (!isGraphRAGGraphResource) {
+          markerEligibleUIResourceCount += 1;
+          resourceText.push(`UI Resource ID: ${resourceId}`);
+          resourceText.push(`UI Resource Marker: \\ui{${resourceId}}`);
+        }
       } else if ('text' in item.resource && item.resource.text != null && item.resource.text) {
         resourceText.push(`Resource Text: ${item.resource.text}`);
       }
@@ -172,7 +182,7 @@ export function formatToolContent(
     }
   }
 
-  if (uiResources.length > 0) {
+  if (markerEligibleUIResourceCount > 0) {
     const uiInstructions = `
 
 UI Resource Markers Available:

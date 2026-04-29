@@ -114,18 +114,35 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
         return body;
       };
 
-      const queryPromises = files.map((file) =>
-        axios
-          .post(`${process.env.RAG_API_URL}/query`, createQueryBody(file), {
-            headers: {
-              Authorization: `Bearer ${jwtToken}`,
-              'Content-Type': 'application/json',
-            },
-          })
-          .catch((error) => {
-            logger.error('Error encountered in `file_search` while querying file:', error);
-            return null;
-          }),
+      // Build list of available backends
+      const backends = [];
+      if (process.env.RAG_API_URL) {
+        backends.push({ label: 'vector', url: process.env.RAG_API_URL });
+      }
+      if (process.env.GRAPH_RAG_API_URL) {
+        backends.push({ label: 'graphrag', url: process.env.GRAPH_RAG_API_URL });
+      }
+
+      if (backends.length === 0) {
+        return ['No RAG backend configured. Please set RAG_API_URL or GRAPH_RAG_API_URL.', undefined];
+      }
+
+      // Query all backends for each file in parallel
+      const queryPromises = files.flatMap((file) =>
+        backends.map((backend) =>
+          axios
+            .post(`${backend.url}/query`, createQueryBody(file), {
+              headers: {
+                Authorization: `Bearer ${jwtToken}`,
+                'Content-Type': 'application/json',
+              },
+            })
+            .then((result) => ({ result, backend, file }))
+            .catch((error) => {
+              logger.debug(`[${Tools.file_search}] ${backend.label} backend error for ${file.filename}:`, error.message);
+              return null;
+            }),
+        ),
       );
 
       const results = await Promise.all(queryPromises);
@@ -135,16 +152,35 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
         return ['No results found or errors occurred while searching the files.', undefined];
       }
 
-      const formattedResults = validResults
-        .flatMap((result, fileIndex) =>
-          result.data.map(([docInfo, distance]) => ({
-            filename: docInfo.metadata.source.split('/').pop(),
-            content: docInfo.page_content,
+      // Deduplicate results across backends using content hash
+      const dedupedResults = new Map();
+      validResults.forEach(({ result, backend, file }) => {
+        if (!result.data || !Array.isArray(result.data)) {
+          return;
+        }
+        result.data.forEach(([docInfo, distance]) => {
+          const filename = docInfo.metadata?.source?.split('/').pop() ?? file.filename;
+          const content = docInfo.page_content ?? '';
+          const contentKey = `${file.file_id}::${content.trim().slice(0, 180)}`;
+          
+          const existing = dedupedResults.get(contentKey);
+          const entry = {
+            filename,
+            content,
             distance,
-            file_id: files[fileIndex]?.file_id,
-            page: docInfo.metadata.page || null,
-          })),
-        )
+            file_id: file.file_id,
+            page: docInfo.metadata?.page ?? null,
+            retrieval: backend.label,
+          };
+          
+          // Keep the result with better (lower) distance score
+          if (!existing || distance < existing.distance) {
+            dedupedResults.set(contentKey, entry);
+          }
+        });
+      });
+
+      const formattedResults = Array.from(dedupedResults.values())
         .sort((a, b) => a.distance - b.distance)
         .slice(0, 10);
 

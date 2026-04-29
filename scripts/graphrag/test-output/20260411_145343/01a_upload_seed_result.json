@@ -1,0 +1,4 @@
+{
+  "seeded": false,
+  "reason": "Failed docker copy into LibreChat-API: Command failed: docker cp /Users/deng/Library/Mobile Documents/com~apple~CloudDocs/Desktop/USC/Impact/SEMAA_Ardalan/LibreChat/docs/graphrag-test/. LibreChat-API:/app/uploads/graphrag-seed/"
+}

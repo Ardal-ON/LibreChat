@@ -1,0 +1,53 @@
+SEMAA Emergency Response Protocol ERP-2026-01
+
+Organization: SEMAA Marine Operations
+Document Type: Operational Protocol
+Owner: Safety Director Alice Chen
+Effective Date: 2026-02-01
+Version: 1.2
+
+Purpose
+This protocol defines mandatory response procedures for all declared emergencies aboard SEMAA vessels, including engine casualties, fire, flooding, and man-overboard events. All crew must be familiar with this document before departure clearance is granted.
+
+Section 1. Emergency Classification
+- Level 1 (Minor): Contained incident with no risk of vessel loss. Managed by chief engineer or officer on watch.
+- Level 2 (Serious): Incident affecting vessel control or crew safety. Requires immediate notification to Fleet Manager Brian Wu.
+- Level 3 (Critical): Imminent risk of vessel loss or crew fatality. Requires immediate activation of full emergency command chain.
+
+Section 2. Engine Overheating Response
+- Step 1: Reduce engine RPM to idle immediately upon overheating alert.
+- Step 2: Chief engineer initiates cooling protocol within 7 minutes of alert.
+- Step 3: If temperature does not normalize within 20 minutes, declare Level 2 emergency.
+- Step 4: Submit emergency inspection request within 1 hour of docking.
+- Step 5: Notify Safety Director Alice Chen via hotline +886-2-5555-1200 within 2 hours.
+- Note: CPF-9 cooling pump filter blockage is the most common root cause. Ensure spare inventory is maintained per supplier contract SC-88 with OceanCore Parts Ltd.
+
+Section 3. Fire Response
+- Step 1: Sound general alarm, broadcast on VHF channel 16.
+- Step 2: Officer on watch declares emergency and initiates muster.
+- Step 3: First response team deploys extinguishers (reference inspection checklist IC-2026-V1 for extinguisher locations).
+- Step 4: If fire is not contained within 5 minutes, issue MAYDAY on channel 16.
+- Step 5: Activate EPIRB if vessel must be abandoned.
+
+Section 4. Man Overboard
+- Step 1: Shout man overboard, throw life ring immediately.
+- Step 2: Officer on watch takes the helm, begins recovery maneuver.
+- Step 3: Mark GPS position, broadcast on VHF channel 16.
+- Step 4: Contact Incident Hotline +886-2-5555-1200.
+- Step 5: Complete incident report within 24 hours (reference IR-2026 series format).
+
+Section 5. Reporting Requirements
+- All Level 2 and Level 3 incidents must be reported to Fleet Manager Brian Wu within 4 hours.
+- A formal incident report following the IR-2026 format must be submitted within 48 hours.
+- Emergency reserve fund activation above USD 20,000 requires notification to Safety Director within 12 hours per budget policy BP-2026-H1.
+
+Section 6. Crew Readiness
+- All crew must complete Module A (Engine Overheating Response) and Module C (Incident Communication Escalation) from the Q1 training program before being assigned emergency duties.
+- Vessels with training completion below 90 percent must complete makeup drills before departure authorization.
+- Current Q1 coordinator: Alice Chen.
+
+Contact Directory
+- Safety Director: Alice Chen, +886-2-5555-1200
+- Fleet Manager: Brian Wu
+- Incident Hotline: +886-2-5555-1200
+- Supplier Emergency Line (OceanCore Parts Ltd.): contact via contract SC-88 terms, 24-hour delivery SLA applies.

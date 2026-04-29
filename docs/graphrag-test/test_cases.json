@@ -1,0 +1,54 @@
+{
+  "suite": "graphrag_acceptance_v1",
+  "description": "Cross-chat persistence and retrieval quality checks",
+  "cases": [
+    {
+      "id": "TC01",
+      "query": "Class A 船舶幾天要做一次完整檢查？",
+      "expected_keywords": ["Class A", "30 days", "inspection"],
+      "source_file": "01_marine_policy.txt"
+    },
+    {
+      "id": "TC02",
+      "query": "引擎過熱後多久內必須做緊急檢查？",
+      "expected_keywords": ["24 hours", "Emergency inspection"],
+      "source_file": "01_marine_policy.txt"
+    },
+    {
+      "id": "TC03",
+      "query": "IR-2026-003 的直接原因是什麼？",
+      "expected_keywords": ["Cooling pump filter blockage", "direct cause"],
+      "source_file": "02_incident_report.txt"
+    },
+    {
+      "id": "TC04",
+      "query": "誰負責驗證備品庫存？截止日是何時？",
+      "expected_keywords": ["Brian Wu", "2026-02-05"],
+      "source_file": "02_incident_report.txt"
+    },
+    {
+      "id": "TC05",
+      "query": "CPF-9 單價是多少？",
+      "expected_keywords": ["USD 220", "CPF-9"],
+      "source_file": "03_supplier_contract.txt"
+    },
+    {
+      "id": "TC06",
+      "query": "緊急交付 SLA 是幾小時？",
+      "expected_keywords": ["24 hours", "Emergency delivery"],
+      "source_file": "03_supplier_contract.txt"
+    },
+    {
+      "id": "TC07",
+      "query": "SEMAA 的安全總監是誰？",
+      "expected_keywords": ["Alice Chen", "Safety Director"],
+      "source_file": "01_marine_policy.txt"
+    },
+    {
+      "id": "TC08",
+      "query": "跨檔案問題：過熱事件後誰要做庫存確認，且合約緊急交付時限是多久？",
+      "expected_keywords": ["Brian Wu", "24 hours"],
+      "source_file": "02_incident_report.txt + 03_supplier_contract.txt"
+    }
+  ]
+}

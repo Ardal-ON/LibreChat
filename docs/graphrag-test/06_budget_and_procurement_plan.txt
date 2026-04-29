@@ -1,0 +1,29 @@
+SEMAA Budget and Procurement Plan BP-2026-H1
+
+Department: Marine Operations and Safety
+Prepared By: Finance Lead Irene Kuo
+Period: 2026-01-01 to 2026-06-30
+
+Budget Allocation
+- Safety training budget: USD 120,000.
+- Spare parts budget: USD 340,000.
+- Emergency response reserve: USD 80,000.
+
+Procurement Priorities
+- Priority 1: Cooling pump filters CPF-9, target 1,200 units.
+- Priority 2: Relay clamps RC-12, target 300 units.
+- Priority 3: Lubricant LT-55, target 1,500 liters.
+
+Vendor Strategy
+- Primary vendor for CPF-9: OceanCore Parts Ltd.
+- Secondary vendor for CPF-9: HarborTech Supply Co.
+- Dual-vendor policy required for all critical engine components.
+
+Controls and Thresholds
+- Any single PO above USD 50,000 requires dual approval.
+- Emergency reserve usage above USD 20,000 requires Safety Director notification within 12 hours.
+- Monthly variance above 8 percent triggers executive review.
+
+Milestones
+- March checkpoint: complete 45 percent of CPF-9 annual target.
+- June checkpoint: complete 70 percent of CPF-9 annual target.

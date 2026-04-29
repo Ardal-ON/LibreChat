@@ -5,6 +5,85 @@ const { logger } = require('@librechat/data-schemas');
 const { FileSources } = require('librechat-data-provider');
 const { logAxiosError, generateShortLivedToken } = require('@librechat/api');
 
+async function deleteGraphDocuments(jwtToken, fileId) {
+  if (!process.env.GRAPH_RAG_API_URL) {
+    return;
+  }
+
+  try {
+    await axios.delete(`${process.env.GRAPH_RAG_API_URL}/documents`, {
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      data: [fileId],
+    });
+  } catch (error) {
+    logAxiosError({
+      error,
+      message: 'Error deleting GraphRAG document',
+    });
+  }
+}
+
+async function extractTextForGraph({ jwtToken, file, file_id, entity_id }) {
+  const formData = new FormData();
+  formData.append('file_id', file_id);
+  formData.append('file', fs.createReadStream(file.path));
+
+  if (entity_id != null && entity_id) {
+    formData.append('entity_id', entity_id);
+  }
+
+  const response = await axios.post(`${process.env.RAG_API_URL}/text`, formData, {
+    headers: {
+      Authorization: `Bearer ${jwtToken}`,
+      accept: 'application/json',
+      ...formData.getHeaders(),
+    },
+  });
+
+  return response.data;
+}
+
+async function syncGraphRAGDocument({ jwtToken, file, file_id, entity_id }) {
+  if (!process.env.GRAPH_RAG_API_URL) {
+    return;
+  }
+
+  try {
+    const textResponse = await extractTextForGraph({ jwtToken, file, file_id, entity_id });
+    if (!textResponse?.text) {
+      logger.warn(`[GraphRAG] Empty extracted text for ${file.originalname}, skipping graph ingestion`);
+      return;
+    }
+
+    await axios.post(
+      `${process.env.GRAPH_RAG_API_URL}/ingest-text`,
+      {
+        file_id,
+        filename: textResponse.filename ?? file.originalname,
+        text: textResponse.text,
+        entity_id,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+      },
+    );
+  } catch (error) {
+    logAxiosError({
+      error,
+      message: 'Error syncing GraphRAG document',
+    });
+    logger.warn(`[GraphRAG] Skipping graph sync for ${file.originalname}`);
+  }
+}
+
 /**
  * Deletes a file from the vector database. This function takes a file object, constructs the full path, and
  * verifies the path's validity before deleting the file. If the path is invalid, an error is thrown.
@@ -24,7 +103,7 @@ const deleteVectors = async (req, file) => {
   try {
     const jwtToken = generateShortLivedToken(req.user.id);
 
-    return await axios.delete(`${process.env.RAG_API_URL}/documents`, {
+    const result = await axios.delete(`${process.env.RAG_API_URL}/documents`, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
         'Content-Type': 'application/json',
@@ -32,6 +111,8 @@ const deleteVectors = async (req, file) => {
       },
       data: [file.file_id],
     });
+    await deleteGraphDocuments(jwtToken, file.file_id);
+    return result;
   } catch (error) {
     logAxiosError({
       error,
@@ -103,6 +184,13 @@ async function uploadVectors({ req, file, file_id, entity_id, storageMetadata })
     if (!responseData.status) {
       throw new Error('File embedding failed.');
     }
+
+    await syncGraphRAGDocument({
+      jwtToken,
+      file,
+      file_id,
+      entity_id,
+    });
 
     return {
       bytes: file.size,
