@@ -17,6 +17,15 @@ const DEFAULT_MAX_GRAPH_NODES = Number.parseInt(process.env.GRAPHRAG_MAX_GRAPH_N
 const MAX_RESULT_CONTENT_CHARS = Number.parseInt(process.env.GRAPHRAG_MAX_RESULT_CONTENT_CHARS ?? '420', 10);
 const MAX_ENTITIES_PER_CHUNK = Number.parseInt(process.env.GRAPHRAG_MAX_ENTITIES_PER_CHUNK ?? '8', 10);
 const GRAPH_RESULT_CACHE_LIMIT = Number.parseInt(process.env.GRAPHRAG_GRAPH_CACHE_LIMIT ?? '180', 10);
+const MAX_INFERRED_RELATIONS_PER_CHUNK = Number.parseInt(
+  process.env.GRAPHRAG_MAX_INFERRED_RELATIONS_PER_CHUNK ?? '24',
+  10,
+);
+const SHORT_INGEST_RATIO_GUARD = Number.parseFloat(process.env.GRAPHRAG_SHORT_INGEST_RATIO_GUARD ?? '1.2');
+const SHORT_INGEST_DELTA_GUARD_BYTES = Number.parseInt(
+  process.env.GRAPHRAG_SHORT_INGEST_DELTA_GUARD_BYTES ?? '50000',
+  10,
+);
 
 const graphResultCache = new Map();
 
@@ -75,6 +84,26 @@ const stopWords = new Set([
   'yours', 'can', 'could', 'would', 'should', 'will', 'may', 'might', 'than', 'then', 'there', 'here',
 ]);
 
+const genericEntityTerms = new Set([
+  'The',
+  'This',
+  'These',
+  'Those',
+  'It',
+  'Its',
+  'Section',
+  'Sections',
+  'Chapter',
+  'Chapters',
+  'Part',
+  'Table',
+  'Figure',
+  'Note',
+  'Notes',
+]);
+
+const noisyEntityPattern = /\b(see|chapter|chapters|table|tables|figure|figures|rule|rules|appendix|appendices)\b/i;
+
 function ensureStore() {
   fs.mkdirSync(STORE_DIR, { recursive: true });
   if (!fs.existsSync(STORE_FILE)) {
@@ -92,6 +121,307 @@ function saveStore(store) {
   fs.writeFileSync(STORE_FILE, JSON.stringify(store, null, 2));
 }
 
+function relationRecord(sourceLabel, relationLabel, targetLabel) {
+  const sourceKey = normalizeEntityKey(sourceLabel);
+  const targetKey = normalizeEntityKey(targetLabel);
+  const relationKey = normalizeRelationLabel(relationLabel);
+  if (!sourceKey || !targetKey || !relationKey || sourceKey === targetKey) {
+    return null;
+  }
+
+  return {
+    sourceLabel,
+    sourceKey,
+    relationLabel: relationKey,
+    relationKey,
+    targetLabel,
+    targetKey,
+  };
+}
+
+function sanitizeRelationPhrase(raw, maxWords = 12) {
+  if (typeof raw !== 'string') {
+    return '';
+  }
+
+  const cleaned = raw
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\*\*|\*/g, ' ')
+    .replace(/\$\$[^$]*\$\$/g, ' ')
+    .replace(/\$[^$]*\$/g, ' ')
+    .replace(/\([^)]*\d[^)]*\)/g, ' ')
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '');
+
+  if (!cleaned) {
+    return '';
+  }
+
+  const words = cleaned.split(' ').filter(Boolean).slice(0, maxWords);
+  return words.join(' ').trim();
+}
+
+function isStructuralNoiseLine(line) {
+  if (!line) {
+    return true;
+  }
+
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return true;
+  }
+
+  if (/^\|.*\|$/.test(trimmed)) {
+    return true; // table rows
+  }
+
+  if (/^\$\$/.test(trimmed) || /\$\$/.test(trimmed)) {
+    return true; // equation blocks
+  }
+
+  if (/^[0-9\s.,()\[\]{}\-+/=*%]+$/.test(trimmed)) {
+    return true; // mostly numeric/math line
+  }
+
+  return false;
+}
+
+function pushInferredRelation(inferred, seen, sourceLabel, relationLabel, targetLabel) {
+  const source = sanitizeRelationPhrase(sourceLabel);
+  const target = sanitizeRelationPhrase(targetLabel);
+  if (!source || !target) {
+    return false;
+  }
+
+  const relation = relationRecord(source, relationLabel, target);
+  if (!relation) {
+    return false;
+  }
+
+  const dedupeKey = `${relation.sourceKey}|${relation.relationKey}|${relation.targetKey}`;
+  if (seen.has(dedupeKey)) {
+    return false;
+  }
+
+  seen.add(dedupeKey);
+  inferred.push(relation);
+  return true;
+}
+
+function inferRelationsFromText(content) {
+  const normalized = normalizeWhitespace(content);
+  const lines = normalized
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const sentences = normalized
+    .split(/[.!?]+\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((s) => !isStructuralNoiseLine(s));
+
+  const patternRules = [
+    { regex: /^(.+?)\s+(?:is|are)\s+to\s+comply with\s+(.+)$/i, label: 'complies_with' },
+    {
+      regex: /^(.+?)\s+(?:is|are)\s+to\s+be\s+provided with\s+(.+)$/i,
+      label: 'provided_with',
+    },
+    { regex: /^(.+?)\s+(?:is|are)\s+to\s+be\s+capable of\s+(.+)$/i, label: 'capable_of' },
+    { regex: /^(.+?)\s+(?:is|are)\s+to\s+be\s+designed for\s+(.+)$/i, label: 'designed_for' },
+    { regex: /^(.+?)\s+(?:is|are)\s+not\s+to\s+exceed\s+(.+)$/i, label: 'max_limit' },
+    { regex: /^(.+?)\s+is\s+the\s+(.+)$/i, label: 'defined_as' },
+    { regex: /^(.+?)\s+are\s+those\s+(.+)$/i, label: 'defined_as' },
+  ];
+
+  const relationHints = [
+    { regex: /\b(contains|include|includes|comprises|consists of)\b/i, label: 'contains' },
+    { regex: /\b(maintains|maintained)\b/i, label: 'maintains' },
+    { regex: /\b(requires|depends on|needs)\b/i, label: 'requires' },
+    { regex: /\b(controls|operates|manages)\b/i, label: 'controls' },
+    { regex: /\b(connects|links|interfaces with)\b/i, label: 'connects_to' },
+    { regex: /\b(supports|provides|allows)\b/i, label: 'supports' },
+    { regex: /\b(uses|utilizes|reuses)\b/i, label: 'uses' },
+  ];
+
+  const inferred = [];
+  const seen = new Set();
+  let lastDefinitionTerm = null;
+
+  // Pass 1: line-level extraction for definitions and section references.
+  for (const line of lines) {
+    if (isStructuralNoiseLine(line)) {
+      continue;
+    }
+
+    const sectionRefMatches = Array.from(
+      line.matchAll(/\b(?:See|see|in accordance with|comply with)\s+([0-9]+\/[0-9.]+(?:\s+TABLE\s+\d+)?(?:\s+FIGURE\s+\d+)?)/g),
+    );
+
+    const headingMatch = line.match(/^\d{1,3}(?:\.\d+)*\s+([A-Z][A-Za-z0-9()\/-]*(?:\s+[A-Z][A-Za-z0-9()\/-]*){0,10})$/);
+    if (headingMatch) {
+      lastDefinitionTerm = sanitizeRelationPhrase(headingMatch[1]);
+      if (sectionRefMatches.length > 0 && lastDefinitionTerm) {
+        for (const match of sectionRefMatches) {
+          pushInferredRelation(
+            inferred,
+            seen,
+            lastDefinitionTerm,
+            'references_section',
+            `Section ${match[1].replace(/\s+/g, ' ')}`,
+          );
+        }
+      }
+      if (inferred.length >= MAX_INFERRED_RELATIONS_PER_CHUNK) {
+        return inferred;
+      }
+      continue;
+    }
+
+    if (lastDefinitionTerm) {
+      const definitionBody = line.match(/^(?:A|An|The)\s+(.+?)\s+(?:that|which|used|intended|located|installed|maintained|for|is|are)\b/i);
+      if (definitionBody) {
+        pushInferredRelation(inferred, seen, lastDefinitionTerm, 'defined_as', definitionBody[1]);
+        if (inferred.length >= MAX_INFERRED_RELATIONS_PER_CHUNK) {
+          return inferred;
+        }
+      }
+    }
+
+    if (sectionRefMatches.length > 0) {
+      const entities = extractEntities(line);
+      const source = lastDefinitionTerm || entities[0] || line.split(/\s+(?:is|are)\s+/i)[0];
+      for (const match of sectionRefMatches) {
+        pushInferredRelation(
+          inferred,
+          seen,
+          source,
+          'references_section',
+          `Section ${match[1].replace(/\s+/g, ' ')}`,
+        );
+      }
+      if (inferred.length >= MAX_INFERRED_RELATIONS_PER_CHUNK) {
+        return inferred;
+      }
+    }
+  }
+
+  // Pass 2: sentence-level extraction for requirements and operational constraints.
+  for (const sentence of sentences) {
+    let matchedRule = false;
+
+    for (const rule of patternRules) {
+      const match = sentence.match(rule.regex);
+      if (!match) {
+        continue;
+      }
+      matchedRule = true;
+      pushInferredRelation(inferred, seen, match[1], rule.label, match[2]);
+      if (inferred.length >= MAX_INFERRED_RELATIONS_PER_CHUNK) {
+        return inferred;
+      }
+    }
+
+    if (matchedRule) {
+      continue;
+    }
+
+    const entities = extractEntities(sentence).slice(0, 6);
+    if (entities.length < 2) {
+      continue;
+    }
+
+    const hint = relationHints.find((h) => h.regex.test(sentence));
+    const relationLabel = hint?.label ?? 'co_occurs';
+
+    if (relationLabel === 'co_occurs' && !hasSentenceRelationContext(sentence)) {
+      continue;
+    }
+
+    const pairs = [];
+    if (relationLabel === 'co_occurs') {
+      for (let i = 0; i < entities.length - 1; i += 1) {
+        pairs.push([entities[i], entities[i + 1]]);
+      }
+    } else {
+      pairs.push([entities[0], entities[1]]);
+    }
+
+    for (const [sourceLabel, targetLabel] of pairs) {
+      pushInferredRelation(inferred, seen, sourceLabel, relationLabel, targetLabel);
+      if (inferred.length >= MAX_INFERRED_RELATIONS_PER_CHUNK) {
+        return inferred;
+      }
+    }
+  }
+
+  return inferred;
+}
+
+function mergeRelations(explicitRelations, inferredRelations) {
+  const merged = [];
+  const seen = new Set();
+
+  for (const relation of [...(explicitRelations ?? []), ...(inferredRelations ?? [])]) {
+    if (!relation?.sourceKey || !relation?.relationKey || !relation?.targetKey) {
+      continue;
+    }
+    const key = `${relation.sourceKey}|${relation.relationKey}|${relation.targetKey}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    merged.push(relation);
+  }
+
+  return merged;
+}
+
+function normalizeNodeShape(node, index, fileId) {
+  const safeIndex = Number.isInteger(node?.index) ? node.index : index;
+  const content = node?.content ?? node?.text ?? '';
+  const explicitRelations = Array.isArray(node?.explicitRelations) ? node.explicitRelations : [];
+  const inferredRelations = inferRelationsFromText(content);
+  const allRelations = mergeRelations(explicitRelations, inferredRelations);
+
+  return {
+    id: node?.id ?? `${fileId}::${safeIndex}`,
+    index: safeIndex,
+    content,
+    tokens: Array.isArray(node?.tokens) ? node.tokens : tokenize(content),
+    entities: Array.isArray(node?.entities) ? node.entities : [],
+    explicitRelations: allRelations,
+    edges: Array.isArray(node?.edges) ? node.edges : [],
+    hash: node?.hash ?? null,
+  };
+}
+
+function normalizeStoredDoc(doc, fallbackId) {
+  const file_id = doc?.file_id ?? doc?.fileId ?? fallbackId;
+  const filename = doc?.filename ?? doc?.fileName ?? String(file_id ?? 'unknown');
+  const entity_id = doc?.entity_id ?? doc?.entityId ?? null;
+
+  const rawNodes = Array.isArray(doc?.nodes)
+    ? doc.nodes
+    : Array.isArray(doc?.chunks)
+      ? doc.chunks
+      : [];
+
+  const nodes = rawNodes.map((node, index) => normalizeNodeShape(node, index, file_id));
+
+  return {
+    ...doc,
+    file_id,
+    filename,
+    entity_id,
+    nodes,
+    chunkCount: doc?.chunkCount ?? nodes.length,
+    updatedAt: doc?.updatedAt ?? doc?.createdAt ?? null,
+  };
+}
+
 function normalizeWhitespace(text) {
   return text.replace(/\r\n/g, '\n').replace(/\t/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
@@ -106,7 +436,25 @@ function tokenize(text) {
 
 function extractEntities(text) {
   const matches = text.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g) ?? [];
-  return Array.from(new Set(matches.filter((m) => m.length >= 3)));
+  return Array.from(new Set(matches.filter((m) => {
+    const entity = m.trim();
+    if (entity.length < 3) {
+      return false;
+    }
+    if (genericEntityTerms.has(entity)) {
+      return false;
+    }
+    if (noisyEntityPattern.test(entity)) {
+      return false;
+    }
+    return true;
+  })));
+}
+
+function hasSentenceRelationContext(sentence) {
+  return /\b(is|are|shall|must|may|should|include|includes|contains|consists|requires|provide|provides|maintain|maintains|support|supports|connect|connects|use|uses|designed|capable|comply|complies|exceed|exceeds|reference|references)\b/i.test(
+    sentence,
+  );
 }
 
 function normalizeEntityKey(value) {
@@ -312,25 +660,59 @@ function queryGraphDocument(doc, rawQuery, topK = 5, minScore = 0) {
 
 function listDocuments() {
   const store = loadStore();
-  return Object.values(store.files).map((doc) => ({
-    file_id: doc.file_id,
-    filename: doc.filename,
-    entity_id: doc.entity_id ?? null,
-    chunkCount: doc.chunkCount ?? doc.nodes?.length ?? 0,
-    updatedAt: doc.updatedAt ?? doc.createdAt,
-  }));
+  return Object.entries(store.files).map(([key, doc]) => {
+    const normalizedDoc = normalizeStoredDoc(doc, key);
+    return {
+      file_id: normalizedDoc.file_id,
+      filename: normalizedDoc.filename,
+      entity_id: normalizedDoc.entity_id ?? null,
+      chunkCount: normalizedDoc.chunkCount ?? normalizedDoc.nodes?.length ?? 0,
+      updatedAt: normalizedDoc.updatedAt,
+    };
+  });
 }
 
-function ingestDocument({ file_id, filename, text, entity_id }) {
+function getDocumentTotalChars(doc) {
+  const nodes = Array.isArray(doc?.nodes) ? doc.nodes : [];
+  return nodes.reduce((total, node) => total + Buffer.byteLength(node?.content ?? '', 'utf8'), 0);
+}
+
+function ingestDocument({ file_id, filename, text, entity_id, allow_replace_with_shorter = false }) {
   const normalized = typeof text === 'string' ? text.trim() : '';
   const placeholderPattern = /^document text for\s+.+\.(txt|md)$/i;
-  if (!normalized || placeholderPattern.test(normalized)) {
+  const summarizedAttachmentPatterns = [
+    /content truncated for brevity/i,
+    /\.{3}\s*etc\.?\s*\(content truncated/i,
+    /^summary[:\s]/i,
+    /^attachment summary[:\s]/i,
+  ];
+  const looksSummarizedAttachment = summarizedAttachmentPatterns.some((pattern) =>
+    pattern.test(normalized),
+  );
+
+  if (!normalized || placeholderPattern.test(normalized) || looksSummarizedAttachment) {
     throw new Error(
-      'Invalid text payload for ingest_document. Please provide real document text or use graphrag_ingest_uploaded_file.',
+      'Invalid text payload for ingest_document. Please provide full original document text or use graphrag_ingest_uploaded_file.',
     );
   }
 
   const store = loadStore();
+  const existingDoc = store.files[file_id];
+  if (existingDoc && allow_replace_with_shorter !== true) {
+    const existingChars = getDocumentTotalChars(existingDoc);
+    const incomingBytes = Buffer.byteLength(normalized, 'utf8');
+    const largeDrop =
+      existingChars > 0 &&
+      existingChars > incomingBytes * SHORT_INGEST_RATIO_GUARD &&
+      existingChars - incomingBytes >= SHORT_INGEST_DELTA_GUARD_BYTES;
+
+    if (largeDrop) {
+      throw new Error(
+        `Refusing to overwrite existing indexed document with much shorter text (existing_chars=${existingChars}, incoming_chars=${incomingBytes}). If this replacement is intentional, delete the document first or set allow_replace_with_shorter=true.`,
+      );
+    }
+  }
+
   const doc = buildGraphDocument({ file_id, filename, text, entity_id });
   store.files[file_id] = doc;
   saveStore(store);
@@ -356,71 +738,175 @@ function walkFilesRecursive(dir, collector) {
   }
 }
 
-function getUploadedTextFiles() {
-  if (!fs.existsSync(UPLOADS_DIR)) {
+async function getDbBackedTextFiles() {
+  if (!process.env.MONGO_URI) {
     return [];
   }
 
-  const allFiles = [];
-  walkFilesRecursive(UPLOADS_DIR, allFiles);
-  return allFiles
-    .filter((filePath) => isSupportedTextExtension(filePath))
-    .map((filePath) => ({
-      path: filePath,
-      basename: path.basename(filePath),
-      mtimeMs: fs.statSync(filePath).mtimeMs,
-      size: fs.statSync(filePath).size,
-    }))
-    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+  try {
+    const { connectDb } = require('../db/connect');
+    const mongoose = await connectDb();
+    const collection = mongoose?.connection?.db?.collection('files');
+    if (!collection) {
+      return [];
+    }
+
+    const records = await collection
+      .find(
+        {
+          source: 'text',
+          filename: { $regex: /\.(txt|md)$/i },
+          text: { $type: 'string', $ne: '' },
+        },
+        {
+          projection: {
+            file_id: 1,
+            filename: 1,
+            filepath: 1,
+            bytes: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            text: 1,
+          },
+        },
+      )
+      .toArray();
+
+    return records.map((record) => ({
+      storage: 'db',
+      file_id: record.file_id,
+      basename: record.filename,
+      path: record.filepath || `db://${record.file_id}`,
+      mtimeMs: new Date(record.updatedAt || record.createdAt || 0).getTime() || 0,
+      size:
+        typeof record.bytes === 'number'
+          ? record.bytes
+          : Buffer.byteLength(record.text || '', 'utf8'),
+      text: record.text,
+    }));
+  } catch (error) {
+    console.error('[graphrag-mcp] Failed to list DB-backed text uploads:', error.message);
+    return [];
+  }
 }
 
-function findUploadedFileByName(filename) {
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    throw new Error(`Uploads directory not found: ${UPLOADS_DIR}`);
+async function getUploadedTextFiles() {
+  const files = [];
+
+  if (fs.existsSync(UPLOADS_DIR)) {
+    const allFiles = [];
+    walkFilesRecursive(UPLOADS_DIR, allFiles);
+    files.push(
+      ...allFiles.filter((filePath) => isSupportedTextExtension(filePath)).map((filePath) => ({
+        storage: 'fs',
+        path: filePath,
+        basename: path.basename(filePath),
+        mtimeMs: fs.statSync(filePath).mtimeMs,
+        size: fs.statSync(filePath).size,
+      })),
+    );
   }
 
-  const allFiles = getUploadedTextFiles().map((f) => f.path);
+  files.push(...(await getDbBackedTextFiles()));
 
+  return files.sort((a, b) => b.mtimeMs - a.mtimeMs);
+}
+
+async function getLatestUploadedFileByNameIfExists(filename) {
+  if (typeof filename !== 'string' || filename.trim().length === 0) {
+    return null;
+  }
+
+  const allFiles = await getUploadedTextFiles();
   const normalizedName = filename.trim();
-  const candidates = allFiles
-    .filter((filePath) => {
-      const base = path.basename(filePath);
-      // LibreChat often stores files with UUID__original-name pattern.
+  const candidates = allFiles.filter((fileRecord) => {
+    const base = fileRecord.basename;
+    if (!base) {
+      return false;
+    }
+    if (fileRecord.storage === 'fs') {
       return base === normalizedName || base.endsWith(`__${normalizedName}`);
-    })
-    .filter((filePath) => isSupportedTextExtension(filePath));
+    }
+    return base === normalizedName;
+  });
 
   if (candidates.length === 0) {
-    const available = getUploadedTextFiles()
+    return null;
+  }
+
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return candidates[0];
+}
+
+async function findUploadedFileByName(filename) {
+  const allFiles = await getUploadedTextFiles();
+
+  const normalizedName = filename.trim();
+  const candidates = allFiles.filter((fileRecord) => {
+    const base = fileRecord.basename;
+    if (!base) {
+      return false;
+    }
+    if (fileRecord.storage === 'fs') {
+      // LibreChat often stores files with UUID__original-name pattern.
+      return base === normalizedName || base.endsWith(`__${normalizedName}`);
+    }
+    return base === normalizedName;
+  });
+
+  if (candidates.length === 0) {
+    const available = allFiles
       .slice(0, 20)
-      .map((f) => f.basename)
+      .map((f) => `${f.basename}${f.storage === 'db' ? ' [db]' : ''}`)
       .join(', ');
     throw new Error(
       `No uploaded .md/.txt file found for filename: ${filename}. Available uploaded text files: ${available || '(none)'}`,
     );
   }
 
-  candidates.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
   return candidates[0];
 }
 
-function ingestUploadedFile({ filename, file_id, entity_id }) {
-  const foundPath = findUploadedFileByName(filename);
-  const stat = fs.statSync(foundPath);
-  if (stat.size > MAX_INGEST_FILE_BYTES) {
-    throw new Error(
-      `File too large (${stat.size} bytes). Limit is ${MAX_INGEST_FILE_BYTES} bytes for MCP file ingest.`,
-    );
-  }
+async function ingestUploadedFile({ filename, file_id, entity_id }) {
+  const found = await findUploadedFileByName(filename);
 
-  const text = fs.readFileSync(foundPath, 'utf8');
-  const derivedFileId =
-    file_id ??
-    `upload-${crypto
-      .createHash('sha1')
-      .update(`${foundPath}:${stat.mtimeMs}:${stat.size}`)
-      .digest('hex')
-      .slice(0, 16)}`;
+  let text;
+  let derivedFileId;
+  let uploadedPath = found.path;
+  let bytes = found.size;
+
+  if (found.storage === 'fs') {
+    const stat = fs.statSync(found.path);
+    if (stat.size > MAX_INGEST_FILE_BYTES) {
+      throw new Error(
+        `File too large (${stat.size} bytes). Limit is ${MAX_INGEST_FILE_BYTES} bytes for MCP file ingest.`,
+      );
+    }
+
+    text = fs.readFileSync(found.path, 'utf8');
+    derivedFileId =
+      file_id ??
+      `upload-${crypto
+        .createHash('sha1')
+        .update(`${found.path}:${stat.mtimeMs}:${stat.size}`)
+        .digest('hex')
+        .slice(0, 16)}`;
+    bytes = stat.size;
+  } else {
+    text = typeof found.text === 'string' ? found.text : '';
+    if (!text.trim()) {
+      throw new Error(`DB-backed uploaded text file is empty for filename: ${filename}`);
+    }
+    if (Buffer.byteLength(text, 'utf8') > MAX_INGEST_FILE_BYTES) {
+      throw new Error(
+        `File too large (${Buffer.byteLength(text, 'utf8')} bytes). Limit is ${MAX_INGEST_FILE_BYTES} bytes for MCP file ingest.`,
+      );
+    }
+    derivedFileId = file_id ?? found.file_id ?? filename;
+    uploadedPath = found.path || `db://${derivedFileId}`;
+    bytes = Buffer.byteLength(text, 'utf8');
+  }
 
   const result = ingestDocument({
     file_id: derivedFileId,
@@ -431,8 +917,9 @@ function ingestUploadedFile({ filename, file_id, entity_id }) {
 
   return {
     ...result,
-    uploaded_path: foundPath,
-    bytes: stat.size,
+    uploaded_path: uploadedPath,
+    bytes,
+    storage: found.storage,
   };
 }
 
@@ -442,7 +929,9 @@ function queryKnowledge({ query, top_k = 5, file_ids, min_score = 0, max_nodes =
   const safeMinScore = clampNumber(min_score, 0, 0, 1);
   const safeMaxNodes = toSafePositiveInt(max_nodes, DEFAULT_MAX_GRAPH_NODES);
 
-  const candidates = Object.values(store.files).filter((doc) => {
+  const normalizedDocs = Object.entries(store.files).map(([key, doc]) => normalizeStoredDoc(doc, key));
+
+  const candidates = normalizedDocs.filter((doc) => {
     if (!Array.isArray(file_ids) || file_ids.length === 0) {
       return true;
     }
@@ -509,7 +998,7 @@ function queryKnowledge({ query, top_k = 5, file_ids, min_score = 0, max_nodes =
   }
 
   const graph = buildQuerySubgraph({
-    store,
+    documents: normalizedDocs,
     query,
     file_ids,
     results,
@@ -541,7 +1030,8 @@ function batchQueryKnowledge({ queries = [], top_k = 5, file_ids, min_score = 0,
   });
 }
 
-function buildQuerySubgraph({ store, query, file_ids, results, max_nodes }) {
+function buildQuerySubgraph({ documents, query, file_ids, results, max_nodes }) {
+  const documentMap = new Map((documents ?? []).map((doc) => [doc.file_id, doc]));
   const nodeMap = new Map();
   const edgeMap = new Map();
   let truncated = false;
@@ -569,7 +1059,7 @@ function buildQuerySubgraph({ store, query, file_ids, results, max_nodes }) {
 
   for (const result of results) {
     const docId = result.file_id;
-    const doc = store.files[docId];
+    const doc = documentMap.get(docId);
     if (!doc || !Array.isArray(doc.nodes)) {
       continue;
     }
@@ -723,10 +1213,14 @@ function buildQuerySubgraph({ store, query, file_ids, results, max_nodes }) {
 function deleteDocuments(file_ids = []) {
   const store = loadStore();
   let deleted = 0;
-  for (const file_id of file_ids) {
-    if (store.files[file_id]) {
-      delete store.files[file_id];
-      deleted += 1;
+  for (const requestedId of file_ids) {
+    for (const [storeKey, doc] of Object.entries(store.files)) {
+      const normalizedDoc = normalizeStoredDoc(doc, storeKey);
+      if (requestedId === normalizedDoc.file_id || requestedId === storeKey) {
+        delete store.files[storeKey];
+        deleted += 1;
+        break;
+      }
     }
   }
   saveStore(store);
@@ -742,6 +1236,38 @@ function compactResultsForChat(results = []) {
     distance: Number(item.distance ?? 1),
     content: excerptContent(item.content, 260),
   }));
+}
+
+function buildGraphAnswerSummary(results = []) {
+  if (!Array.isArray(results) || results.length === 0) {
+    return [
+      'Grounded evidence summary:',
+      'No matching evidence found in the indexed documents.',
+      'Answering rule: If evidence is missing, respond that the answer is not found in retrieved GraphRAG context.',
+    ].join('\n');
+  }
+
+  const lines = results.slice(0, 5).map((item, index) => {
+    const fileLabel = item.filename || item.file_id || 'unknown_document';
+    const excerpt = excerptContent(item.content, 420).replace(/\s+/g, ' ').trim();
+    const score = Number(item.score ?? 0).toFixed(3);
+    const chunkIndex = Number.isInteger(item.chunk_index) ? item.chunk_index : -1;
+    const sourceTag = `${fileLabel}#chunk-${chunkIndex}`;
+    return [
+      `[${index + 1}] source_tag="${sourceTag}" file="${fileLabel}" file_id="${item.file_id}" chunk=${chunkIndex} score=${score}`,
+      `context_exact="${excerpt}"`,
+    ].join('\n');
+  });
+
+  return [
+    'Grounded evidence summary:',
+    ...lines,
+    'Answering rule: Base the final answer only on evidence above. Do not use numeric-only citations like [1] or [2].',
+    'Answering rule: For each factual claim, include source_tag and a direct supporting quote from context_exact.',
+    'Answering rule: Citation format example: (source: 03.md#chunk-18; context: "quoted text from context_exact").',
+    'Answering rule: Do not provide source-only citations without context text.',
+    'Answering rule: If evidence is insufficient, say so explicitly.',
+  ].join('\n');
 }
 
 function compactGraphForChat(graph, maxNodes = 10, maxEdges = 14) {
@@ -852,7 +1378,7 @@ const tools = [
   {
     name: 'graphrag_ingest_document',
     description:
-      'Ingest or update a document in GraphRAG knowledge store. Use this when user provides document text to persist knowledge across chats.',
+      'Ingest or update a document in GraphRAG knowledge store. Use this only when full, original document text is explicitly provided. For uploaded files, prefer graphrag_ingest_uploaded_file.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -860,6 +1386,12 @@ const tools = [
         filename: { type: 'string', description: 'Human-readable document name.' },
         text: { type: 'string', description: 'Full document text content.' },
         entity_id: { type: 'string', description: 'Optional tenant or project id.' },
+        allow_replace_with_shorter: {
+          type: 'boolean',
+          description:
+            'Optional safety override. When true, allows replacing an existing document with much shorter text.',
+          default: false,
+        },
       },
       required: ['file_id', 'filename', 'text'],
     },
@@ -867,16 +1399,16 @@ const tools = [
   {
     name: 'graphrag_query_with_graph',
     description:
-      'Default GraphRAG query tool. Use this for normal user questions so the response includes graph UI data plus graph_id fallback. Only use graphrag_query_knowledge instead when the user explicitly wants text-only output or a compact non-graph response.',
+      'Default GraphRAG query tool. Use this for normal user questions so the response includes graph UI data and grounded evidence references. Assistant responses must be based only on retrieved evidence and must cite human-readable source tags with direct context quotes from evidence (for example: source 03.md#chunk-18 plus quoted context).',
     inputSchema: {
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Natural language question for retrieval.' },
-        top_k: { type: 'number', description: 'Max number of retrieved snippets.', default: 5 },
+        top_k: { type: 'number', description: 'Max number of retrieved snippets.', default: 20 },
         min_score: {
           type: 'number',
           description: 'Optional minimum relevance score in range [0, 1].',
-          default: 0,
+          default: 0.3,
         },
         max_nodes: {
           type: 'number',
@@ -886,40 +1418,7 @@ const tools = [
         include_results: {
           type: 'boolean',
           description: 'Whether to include textual retrieval snippets in response.',
-          default: false,
-        },
-        file_ids: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Optional list of file ids to constrain retrieval scope.',
-        },
-        auto_tune: {
-          type: 'boolean',
-          description: 'When true, automatically relax retrieval thresholds once if initial query returns no results.',
           default: true,
-        },
-      },
-      required: ['query'],
-    },
-  },
-  {
-    name: 'graphrag_query_knowledge',
-    description:
-      'Text-only GraphRAG retrieval tool. Use this only when the user explicitly does not want a graph, or when you need a compact evidence/snippet response without graph UI attachments.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        query: { type: 'string', description: 'Natural language question for retrieval.' },
-        top_k: { type: 'number', description: 'Max number of retrieved snippets.', default: 5 },
-        min_score: {
-          type: 'number',
-          description: 'Optional minimum relevance score in range [0, 1].',
-          default: 0,
-        },
-        max_nodes: {
-          type: 'number',
-          description: 'Optional graph node cap for response payload.',
-          default: 100,
         },
         file_ids: {
           type: 'array',
@@ -1061,11 +1560,26 @@ async function main() {
 
     if (name === 'graphrag_ingest_document') {
       try {
+        const normalizedText = typeof args.text === 'string' ? args.text.trim() : '';
+        const incomingBytes = Buffer.byteLength(normalizedText, 'utf8');
+        const uploadedCandidate = await getLatestUploadedFileByNameIfExists(args.filename);
+        if (
+          uploadedCandidate &&
+          args.allow_replace_with_shorter !== true &&
+          uploadedCandidate.size > incomingBytes * SHORT_INGEST_RATIO_GUARD &&
+          uploadedCandidate.size - incomingBytes >= SHORT_INGEST_DELTA_GUARD_BYTES
+        ) {
+          throw new Error(
+            `Incoming text appears shorter than latest uploaded file for ${args.filename} (incoming_chars=${incomingBytes}, uploaded_chars=${uploadedCandidate.size}). Use graphrag_ingest_uploaded_file to ingest the complete uploaded document, or set allow_replace_with_shorter=true if intentional.`,
+          );
+        }
+
         const result = ingestDocument({
           file_id: args.file_id,
           filename: args.filename,
           text: args.text,
           entity_id: args.entity_id,
+          allow_replace_with_shorter: args.allow_replace_with_shorter === true,
         });
         return textResponse({ status: 'ok', action: 'ingested', ...result });
       } catch (error) {
@@ -1081,36 +1595,12 @@ async function main() {
       }
     }
 
-    if (name === 'graphrag_query_knowledge') {
-      const { results, graph, controls } = queryKnowledge({
-        query: args.query,
-        top_k: args.top_k,
-        min_score: args.min_score,
-        // Keep chat tool output compact so JSON stays parseable in message tool panels.
-        max_nodes: Math.min(toSafePositiveInt(args.max_nodes, 40), 40),
-        file_ids: args.file_ids,
-        auto_tune: args.auto_tune !== false,
-      });
-
-      const compactResults = compactResultsForChat(results);
-      const compactGraph = compactGraphForChat(graph);
-
-      return textResponse({
-        status: 'ok',
-        action: 'queried',
-        count: compactResults.length,
-        controls,
-        results: compactResults,
-        graph: compactGraph,
-      });
-    }
-
     if (name === 'graphrag_query_with_graph') {
-      const includeResults = Boolean(args.include_results);
+      const includeResults = args.include_results !== false;
       const { results, graph, controls } = queryKnowledge({
         query: args.query,
         top_k: args.top_k,
-        min_score: args.min_score,
+        min_score: Math.max(0.3, args.min_score ?? 0.3),
         max_nodes: args.max_nodes,
         file_ids: args.file_ids,
         auto_tune: args.auto_tune !== false,
@@ -1128,11 +1618,10 @@ async function main() {
       const graph_id = putGraphResultInCache(fullGraphPayload);
       const summary = [
         'Graph generated and attached via ui_resources.',
-        `graph_id: ${graph_id}`,
         `result_count: ${results.length}`,
         `node_count: ${Array.isArray(graph?.subgraph?.nodes) ? graph.subgraph.nodes.length : 0}`,
         `edge_count: ${Array.isArray(graph?.subgraph?.edges) ? graph.subgraph.edges.length : 0}`,
-        'If attachment rendering fails, call graphrag_get_graph_by_id with this graph_id.',
+        buildGraphAnswerSummary(results),
       ].join('\n');
 
       return graphUiResourceResponse({
@@ -1162,7 +1651,6 @@ async function main() {
         graph_id: graphRecord.graph_id,
         summary: [
           'Graph payload restored from server cache via graph_id.',
-          `graph_id: ${graphRecord.graph_id}`,
           `cache_age_seconds: ${ageSeconds}`,
         ].join('\n'),
       });
@@ -1200,7 +1688,7 @@ async function main() {
 
     if (name === 'graphrag_ingest_uploaded_file') {
       try {
-        const result = ingestUploadedFile({
+        const result = await ingestUploadedFile({
           filename: args.filename,
           file_id: args.file_id,
           entity_id: args.entity_id,
@@ -1220,9 +1708,11 @@ async function main() {
     }
 
     if (name === 'graphrag_list_uploaded_text_files') {
-      const files = getUploadedTextFiles().map((f) => ({
+      const files = (await getUploadedTextFiles()).map((f) => ({
         basename: f.basename,
         path: f.path,
+        storage: f.storage,
+        file_id: f.file_id ?? null,
         bytes: f.size,
       }));
       return textResponse({ status: 'ok', uploads_dir: UPLOADS_DIR, count: files.length, files });
