@@ -59,8 +59,9 @@ const { mcpTokenRegistry } = require('~/server/services/MCPTokenRegistry');
 const router = Router();
 
 const OAUTH_CSRF_COOKIE_PATH = '/api/mcp';
-const VISUAL_PARADIGM_SERVER_PREFIX = 'visual-paradigm-plugin';
+const VISUAL_PARADIGM_SERVER_PREFIX = 'vp';
 const VISUAL_PARADIGM_SERVER_TITLE = 'Visual Paradigm Plugin';
+const DEFAULT_VISUAL_PARADIGM_AGENT_NAMES = ['AIDIO'];
 
 const getVisualParadigmServerName = (userId) =>
   normalizeServerName(`${VISUAL_PARADIGM_SERVER_PREFIX}-${userId}`);
@@ -92,17 +93,34 @@ const getRequestedAgentIds = (req) => {
   return values.filter((agentId) => typeof agentId === 'string' && agentId.trim() !== '');
 };
 
+const getVisualParadigmAgentNames = () => {
+  const configuredNames =
+    process.env.VISUAL_PARADIGM_AGENT_NAMES || process.env.VP_MCP_AGENT_NAMES || '';
+  if (!configuredNames.trim()) {
+    return DEFAULT_VISUAL_PARADIGM_AGENT_NAMES;
+  }
+  return configuredNames
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+};
+
 const attachVisualParadigmToAgents = async ({ req, user, serverName, tools }) => {
   const toolKeys = getVisualParadigmToolKeys(serverName, tools);
   const requestedAgentIds = getRequestedAgentIds(req);
-  const agentQuery = {
-    author: user.id,
-    ...(requestedAgentIds.length > 0 ? { id: { $in: requestedAgentIds } } : {}),
-  };
+  const targetAgentNames = getVisualParadigmAgentNames();
+  const agentQuery =
+    requestedAgentIds.length > 0
+      ? { id: { $in: requestedAgentIds } }
+      : { name: { $in: targetAgentNames } };
   const agents = await db.getAgents(agentQuery);
 
   if (!agents.length) {
-    logger.warn(`[MCP Link] No owned agents found for Visual Paradigm auto-attach: ${user.id}`);
+    logger.warn(
+      `[MCP Link] No target agents found for Visual Paradigm auto-attach. user=${user.id}; requested=${requestedAgentIds.join(
+        ',',
+      )}; names=${targetAgentNames.join(',')}`,
+    );
     return 0;
   }
 
