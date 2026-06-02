@@ -13,6 +13,7 @@ import AgentMarketplace from '~/components/Agents/Marketplace';
 import { GraphRAGProgressPage } from '~/components/GraphRAG';
 import { OAuthSuccess, OAuthError } from '~/components/OAuth';
 import { AuthContextProvider } from '~/hooks/AuthContext';
+import WithRum from '~/lib/rum/WithRum';
 import RouteErrorBoundary from './RouteErrorBoundary';
 import StartupLayout from './Layouts/Startup';
 import LoginLayout from './Layouts/Login';
@@ -24,13 +25,20 @@ import Root from './Root';
 
 const AuthLayout = () => (
   <AuthContextProvider>
-    <Outlet />
+    <WithRum>
+      <Outlet />
+    </WithRum>
     <ApiErrorWatcher />
   </AuthContextProvider>
 );
 
 const loadInlinePromptsView = () =>
   import('~/components/Prompts/layouts/InlinePromptsView').then((m) => ({
+    Component: m.default,
+  }));
+
+const loadSkillsView = () =>
+  import('~/components/Skills/layouts/SkillsView').then((m) => ({
     Component: m.default,
   }));
 
@@ -132,6 +140,22 @@ export const router = createBrowserRouter(
             {
               path: 'prompts/:promptId',
               lazy: loadInlinePromptsView,
+            },
+            {
+              path: 'skills',
+              lazy: loadSkillsView,
+            },
+            {
+              path: 'skills/new',
+              lazy: loadSkillsView,
+            },
+            {
+              path: 'skills/:skillId',
+              lazy: loadSkillsView,
+            },
+            {
+              path: 'skills/:skillId/edit',
+              lazy: loadSkillsView,
             },
             {
               path: 'agents',

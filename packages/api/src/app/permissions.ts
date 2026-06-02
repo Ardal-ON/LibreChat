@@ -45,6 +45,8 @@ function hasExplicitConfig(
       return interfaceConfig?.mcpServers !== undefined;
     case PermissionTypes.REMOTE_AGENTS:
       return interfaceConfig?.remoteAgents !== undefined;
+    case PermissionTypes.SKILLS:
+      return interfaceConfig?.skills !== undefined;
     default:
       return false;
   }
@@ -87,7 +89,7 @@ export async function updateInterfacePermissions({
   const memoryEnabled = isMemoryEnabled(memoryConfig);
   /** Check if memory is explicitly disabled (memory.disabled === true) */
   const isMemoryExplicitlyDisabled = memoryConfig?.disabled === true;
-  /** Check if memory should be enabled (explicitly enabled or valid config) */
+  /** Check if memory should be enabled (explicitly enabled or configured) */
   const shouldEnableMemory =
     memoryConfig?.disabled === false ||
     (memoryConfig && memoryEnabled && memoryConfig.disabled === undefined);
@@ -149,9 +151,7 @@ export async function updateInterfacePermissions({
         } else if (isMemoryDisabled) {
           logger.debug(`Role '${roleName}': Disabling memories as memory.disabled is true`);
         } else if (isMemoryReenabling) {
-          logger.debug(
-            `Role '${roleName}': Re-enabling memories due to valid memory configuration`,
-          );
+          logger.debug(`Role '${roleName}': Re-enabling memories due to memory configuration`);
         }
       } else {
         logger.debug(`Role '${roleName}': Preserving existing permissions for '${permType}'`);
@@ -177,18 +177,26 @@ export async function updateInterfacePermissions({
       typeof defaults.prompts === 'boolean' ? defaults.prompts : defaults.prompts?.use;
     const agentsDefaultUse =
       typeof defaults.agents === 'boolean' ? defaults.agents : defaults.agents?.use;
+    const skillsDefaultUse =
+      typeof defaults.skills === 'boolean' ? defaults.skills : defaults.skills?.use;
     const promptsDefaultCreate =
       typeof defaults.prompts === 'object' ? defaults.prompts?.create : undefined;
     const agentsDefaultCreate =
       typeof defaults.agents === 'object' ? defaults.agents?.create : undefined;
+    const skillsDefaultCreate =
+      typeof defaults.skills === 'object' ? defaults.skills?.create : undefined;
     const promptsDefaultShare =
       typeof defaults.prompts === 'object' ? defaults.prompts?.share : undefined;
     const agentsDefaultShare =
       typeof defaults.agents === 'object' ? defaults.agents?.share : undefined;
+    const skillsDefaultShare =
+      typeof defaults.skills === 'object' ? defaults.skills?.share : undefined;
     const promptsDefaultPublic =
       typeof defaults.prompts === 'object' ? defaults.prompts?.public : undefined;
     const agentsDefaultPublic =
       typeof defaults.agents === 'object' ? defaults.agents?.public : undefined;
+    const skillsDefaultPublic =
+      typeof defaults.skills === 'object' ? defaults.skills?.public : undefined;
 
     const allPermissions: Partial<Record<PermissionTypes, Record<string, boolean | undefined>>> = {
       [PermissionTypes.PROMPTS]: {
@@ -394,6 +402,17 @@ export async function updateInterfacePermissions({
               ),
             }
           : {}),
+        ...((typeof interfaceConfig?.mcpServers === 'object' &&
+          'configureObo' in interfaceConfig.mcpServers) ||
+        !existingPermissions?.[PermissionTypes.MCP_SERVERS]
+          ? {
+              [Permissions.CONFIGURE_OBO]: getPermissionValue(
+                loadedInterface.mcpServers?.configureObo,
+                defaultPerms[PermissionTypes.MCP_SERVERS]?.[Permissions.CONFIGURE_OBO],
+                undefined,
+              ),
+            }
+          : {}),
       },
       [PermissionTypes.REMOTE_AGENTS]: {
         [Permissions.USE]: getPermissionValue(
@@ -427,6 +446,39 @@ export async function updateInterfacePermissions({
                 loadedInterface.remoteAgents?.public,
                 defaultPerms[PermissionTypes.REMOTE_AGENTS]?.[Permissions.SHARE_PUBLIC],
                 defaults.remoteAgents?.public,
+              ),
+            }
+          : {}),
+      },
+      [PermissionTypes.SKILLS]: {
+        [Permissions.USE]: getPermissionValue(
+          getConfigUse(loadedInterface.skills),
+          defaultPerms[PermissionTypes.SKILLS]?.[Permissions.USE],
+          skillsDefaultUse,
+        ),
+        ...((typeof interfaceConfig?.skills === 'object' && 'create' in interfaceConfig.skills) ||
+        !existingPermissions?.[PermissionTypes.SKILLS]
+          ? {
+              [Permissions.CREATE]: getPermissionValue(
+                getConfigCreate(loadedInterface.skills),
+                defaultPerms[PermissionTypes.SKILLS]?.[Permissions.CREATE],
+                skillsDefaultCreate ?? true,
+              ),
+            }
+          : {}),
+        ...((typeof interfaceConfig?.skills === 'object' &&
+          ('share' in interfaceConfig.skills || 'public' in interfaceConfig.skills)) ||
+        !existingPermissions?.[PermissionTypes.SKILLS]
+          ? {
+              [Permissions.SHARE]: getPermissionValue(
+                getConfigShare(loadedInterface.skills),
+                defaultPerms[PermissionTypes.SKILLS]?.[Permissions.SHARE],
+                skillsDefaultShare,
+              ),
+              [Permissions.SHARE_PUBLIC]: getPermissionValue(
+                getConfigPublic(loadedInterface.skills),
+                defaultPerms[PermissionTypes.SKILLS]?.[Permissions.SHARE_PUBLIC],
+                skillsDefaultPublic,
               ),
             }
           : {}),
@@ -510,6 +562,21 @@ export async function updateInterfacePermissions({
           ),
         },
       ],
+      [
+        PermissionTypes.SKILLS,
+        {
+          [Permissions.SHARE]: getPermissionValue(
+            getConfigShare(loadedInterface.skills),
+            defaultPerms[PermissionTypes.SKILLS]?.[Permissions.SHARE],
+            skillsDefaultShare,
+          ),
+          [Permissions.SHARE_PUBLIC]: getPermissionValue(
+            getConfigPublic(loadedInterface.skills),
+            defaultPerms[PermissionTypes.SKILLS]?.[Permissions.SHARE_PUBLIC],
+            skillsDefaultPublic,
+          ),
+        },
+      ],
     ];
 
     for (const [permType, shareDefaults] of shareBackfill) {
@@ -562,6 +629,39 @@ export async function updateInterfacePermissions({
           ...permissionsToUpdate[PermissionTypes.MCP_SERVERS],
           [Permissions.CREATE]: false,
         };
+      }
+    }
+
+    /**
+     * Backfill MCP_SERVERS.CONFIGURE_OBO for existing roles that pre-date the permission.
+     * The MCP_SERVERS permission type already exists on these role docs, so the
+     * `addPermissionIfNeeded` block above does not re-seed it. Only fill in the field
+     * when it is literally absent — never overwrite an admin-set value.
+     */
+    {
+      const existingMcpPerms = existingPermissions?.[PermissionTypes.MCP_SERVERS];
+      const oboExplicit =
+        typeof interfaceConfig?.mcpServers === 'object' &&
+        'configureObo' in interfaceConfig.mcpServers;
+      const alreadyQueued =
+        permissionsToUpdate[PermissionTypes.MCP_SERVERS]?.[Permissions.CONFIGURE_OBO] !== undefined;
+      if (
+        existingMcpPerms &&
+        existingMcpPerms[Permissions.CONFIGURE_OBO] === undefined &&
+        !oboExplicit &&
+        !alreadyQueued
+      ) {
+        const backfillValue =
+          defaultPerms[PermissionTypes.MCP_SERVERS]?.[Permissions.CONFIGURE_OBO];
+        if (backfillValue !== undefined) {
+          logger.debug(
+            `Role '${roleName}': Backfilling MCP_SERVERS.CONFIGURE_OBO=${backfillValue}`,
+          );
+          permissionsToUpdate[PermissionTypes.MCP_SERVERS] = {
+            ...permissionsToUpdate[PermissionTypes.MCP_SERVERS],
+            [Permissions.CONFIGURE_OBO]: backfillValue,
+          };
+        }
       }
     }
 

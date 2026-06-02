@@ -10,7 +10,13 @@ import {
   summarizationTriggerSchema,
   summarizationConfigSchema,
 } from '../src/config';
-import { tModelSpecPresetSchema, EModelEndpoint } from '../src/schemas';
+import {
+  tModelSpecPresetSchema,
+  EModelEndpoint,
+  ReasoningParameterFormat,
+  ReasoningResponseKey,
+} from '../src/schemas';
+import { specsConfigSchema } from '../src/models';
 import { FileSources } from '../src/types/files';
 
 describe('paramDefinitionSchema', () => {
@@ -304,6 +310,58 @@ describe('endpointSchema addParams validation', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts custom reasoning format config', () => {
+    const result = endpointSchema.safeParse({
+      ...validEndpoint,
+      customParams: {
+        reasoningFormat: ReasoningParameterFormat.reasoningObject,
+      },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.customParams?.reasoningFormat).toBe(
+        ReasoningParameterFormat.reasoningObject,
+      );
+    }
+  });
+
+  it('rejects invalid custom reasoning format config', () => {
+    const result = endpointSchema.safeParse({
+      ...validEndpoint,
+      customParams: {
+        reasoningFormat: 'provider_magic',
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts custom reasoning response key config', () => {
+    const result = endpointSchema.safeParse({
+      ...validEndpoint,
+      customParams: {
+        reasoningKey: ReasoningResponseKey.reasoning,
+      },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.customParams?.reasoningKey).toBe(ReasoningResponseKey.reasoning);
+    }
+  });
+
+  it('rejects invalid custom reasoning response key config', () => {
+    const result = endpointSchema.safeParse({
+      ...validEndpoint,
+      customParams: {
+        reasoningKey: 'reasoning_text',
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('rejects non-boolean web_search objects in addParams', () => {
     const result = endpointSchema.safeParse({
       ...validEndpoint,
@@ -351,6 +409,125 @@ describe('agentsEndpointSchema', () => {
     if (result.success) {
       expect(result.data).not.toHaveProperty('baseURL');
     }
+  });
+
+  it('allows explicitly disabled remote OIDC auth without issuer', () => {
+    const result = agentsEndpointSchema.safeParse({
+      remoteApi: {
+        auth: {
+          oidc: {
+            enabled: false,
+          },
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('requires a valid issuer when remote OIDC auth is enabled', () => {
+    const missingIssuer = agentsEndpointSchema.safeParse({
+      remoteApi: {
+        auth: {
+          oidc: {
+            enabled: true,
+            audience: 'remote-agent-api',
+          },
+        },
+      },
+    });
+    const invalidIssuer = agentsEndpointSchema.safeParse({
+      remoteApi: {
+        auth: {
+          oidc: {
+            enabled: true,
+            issuer: 'my-realm',
+            audience: 'remote-agent-api',
+          },
+        },
+      },
+    });
+
+    expect(missingIssuer.success).toBe(false);
+    expect(invalidIssuer.success).toBe(false);
+  });
+
+  it('requires an audience when remote OIDC auth is enabled', () => {
+    const result = agentsEndpointSchema.safeParse({
+      remoteApi: {
+        auth: {
+          oidc: {
+            enabled: true,
+            issuer: 'https://auth.example.com',
+          },
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('requires HTTPS remote OIDC issuer and JWKS URLs outside localhost', () => {
+    const insecureIssuer = agentsEndpointSchema.safeParse({
+      remoteApi: {
+        auth: {
+          oidc: {
+            enabled: true,
+            issuer: 'http://auth.example.com',
+            audience: 'remote-agent-api',
+          },
+        },
+      },
+    });
+    const insecureJwksUri = agentsEndpointSchema.safeParse({
+      remoteApi: {
+        auth: {
+          oidc: {
+            enabled: true,
+            issuer: 'https://auth.example.com',
+            audience: 'remote-agent-api',
+            jwksUri: 'http://auth.example.com/jwks',
+          },
+        },
+      },
+    });
+
+    expect(insecureIssuer.success).toBe(false);
+    expect(insecureJwksUri.success).toBe(false);
+  });
+
+  it('allows localhost HTTP remote OIDC URLs for development', () => {
+    const result = agentsEndpointSchema.safeParse({
+      remoteApi: {
+        auth: {
+          oidc: {
+            enabled: true,
+            issuer: 'http://localhost:8080/realms/test',
+            audience: 'remote-agent-api',
+            jwksUri: 'http://127.0.0.1:8080/realms/test/protocol/openid-connect/certs',
+          },
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('requires space-separated remote OIDC scopes', () => {
+    const result = agentsEndpointSchema.safeParse({
+      remoteApi: {
+        auth: {
+          oidc: {
+            enabled: true,
+            issuer: 'https://auth.example.com',
+            audience: 'remote-agent-api',
+            scope: 'remote_agent,admin',
+          },
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 
@@ -618,5 +795,48 @@ describe('summarizationTriggerSchema', () => {
       trigger: { type: 'token_ratio', value: 0.8 },
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('specsConfigSchema', () => {
+  it('accepts an empty list (defaults applied)', () => {
+    const result = specsConfigSchema.safeParse({ list: [] });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.list).toEqual([]);
+      expect(result.data.enforce).toBe(false);
+      expect(result.data.prioritize).toBe(true);
+    }
+  });
+
+  it('defaults list to [] when omitted', () => {
+    const result = specsConfigSchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.list).toEqual([]);
+    }
+  });
+
+  it('accepts a populated list', () => {
+    const result = specsConfigSchema.safeParse({
+      enforce: true,
+      list: [
+        {
+          name: 'spec-1',
+          label: 'Spec 1',
+          hideBadgeRow: true,
+          preset: { endpoint: EModelEndpoint.openAI },
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.list[0].hideBadgeRow).toBe(true);
+    }
+  });
+
+  it('still rejects null list', () => {
+    const result = specsConfigSchema.safeParse({ list: null });
+    expect(result.success).toBe(false);
   });
 });
