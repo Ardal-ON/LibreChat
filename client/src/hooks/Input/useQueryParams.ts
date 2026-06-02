@@ -18,7 +18,13 @@ import {
   getConvoSwitchLogic,
   logger,
 } from '~/utils';
-import { useAuthContext, useAgentsMap, useDefaultConvo, useSubmitMessage } from '~/hooks';
+import {
+  useAuthContext,
+  useAgentsMap,
+  useDefaultConvo,
+  useSubmitMessage,
+  useMCPServerManager,
+} from '~/hooks';
 import { startupConfigKey, useGetAgentByIdQuery } from '~/data-provider';
 import { useChatContext, useChatFormContext } from '~/Providers';
 import store from '~/store';
@@ -57,6 +63,7 @@ export default function useQueryParams({
   const submissionHandledRef = useRef(false);
   const promptTextRef = useRef<string | null>(null);
   const validSettingsRef = useRef<TPreset | null>(null);
+  const linkedMCPRef = useRef<string | null>(null);
   const settingsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const methods = useChatFormContext();
@@ -68,6 +75,7 @@ export default function useQueryParams({
 
   const queryClient = useQueryClient();
   const { conversation, newConversation } = useChatContext();
+  const { initializeServer } = useMCPServerManager();
 
   const urlAgentId = searchParams.get('agent_id') || '';
   const { data: urlAgent } = useGetAgentByIdQuery(urlAgentId);
@@ -227,6 +235,32 @@ export default function useQueryParams({
   }, [methods, submitMessage, setSearchParams]);
 
   useEffect(() => {
+    if (searchParams.get('mcpLinkSuccess') !== 'true') {
+      return;
+    }
+
+    const serverName = searchParams.get('serverName');
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('mcpLinkSuccess');
+    nextParams.delete('serverName');
+    setSearchParams(nextParams, { replace: true });
+
+    if (!serverName || linkedMCPRef.current === serverName) {
+      return;
+    }
+
+    linkedMCPRef.current = serverName;
+    void (async () => {
+      await queryClient.invalidateQueries([QueryKeys.mcpServers]);
+      await initializeServer(serverName, false);
+    })();
+  }, [searchParams, setSearchParams, queryClient, initializeServer]);
+
+  useEffect(() => {
+    if (searchParams.get('mcpLinkSuccess') === 'true') {
+      return;
+    }
+
     const processQueryParams = () => {
       const queryParams: Record<string, string> = {};
       searchParams.forEach((value, key) => {

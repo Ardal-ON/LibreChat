@@ -24,9 +24,10 @@ class MCPTokenRegistry {
    * @param {number} params.port - The local port on the user's machine (informational)
    * @param {number} params.ttl - TTL in milliseconds
    * @param {string} [params.userId] - The user ID if known
+   * @param {string} [params.deviceId] - Optional stable plugin/device identifier
    * @returns {string} The registered token
    */
-  registerToken({ token, port, ttl, userId }) {
+  registerToken({ token, port, ttl, userId, deviceId }) {
     const finalToken = token || uuidv4();
     const finalTTL = ttl || this.defaultTTL;
     const expiresAt = Date.now() + finalTTL;
@@ -35,11 +36,34 @@ class MCPTokenRegistry {
       port,
       expiresAt,
       userId,
+      deviceId,
       createdAt: Date.now(),
     });
 
     logger.debug(`[MCPTokenRegistry] Registered token: ${finalToken.substring(0, 8)}... for port ${port}`);
     return finalToken;
+  }
+
+  /**
+   * Bind a registered token to the authenticated LibreChat user.
+   * @param {string} token
+   * @param {string} userId
+   * @returns {Object|null} Updated token data or null if invalid/expired
+   */
+  bindTokenToUser(token, userId) {
+    const data = this.getTokenData(token);
+    if (!data) {
+      return null;
+    }
+
+    const updated = {
+      ...data,
+      userId,
+      linkedAt: Date.now(),
+    };
+    this.tokens.set(token, updated);
+    logger.debug(`[MCPTokenRegistry] Bound token ${token.substring(0, 8)}... to user ${userId}`);
+    return updated;
   }
 
   /**

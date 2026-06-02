@@ -59,6 +59,18 @@ const { mcpTokenRegistry } = require('~/server/services/MCPTokenRegistry');
 const router = Router();
 
 const OAUTH_CSRF_COOKIE_PATH = '/api/mcp';
+const VISUAL_PARADIGM_SERVER_PREFIX = 'visual-paradigm-plugin';
+const VISUAL_PARADIGM_SERVER_TITLE = 'Visual Paradigm Plugin';
+
+const getVisualParadigmServerName = (userId) =>
+  normalizeServerName(`${VISUAL_PARADIGM_SERVER_PREFIX}-${userId}`);
+
+const getVisualParadigmServerConfig = (relayUrl) => ({
+  type: 'websocket',
+  url: relayUrl,
+  title: VISUAL_PARADIGM_SERVER_TITLE,
+  description: 'Connected via Visual Paradigm relay',
+});
 
 const checkMCPUsePermissions = generateCheckAccess({
   permissionType: PermissionTypes.MCP_SERVERS,
@@ -86,7 +98,7 @@ router.get('/tools', requireJwtAuth, checkMCPUsePermissions, async (req, res) =>
  */
 router.post('/register-token', async (req, res) => {
   try {
-    const { token, port, ttl } = req.body;
+    const { token, port, ttl, deviceId } = req.body;
     
     // Validate request
     if (!token || !port) {
@@ -97,7 +109,8 @@ router.post('/register-token', async (req, res) => {
     const registeredToken = mcpTokenRegistry.registerToken({ 
       token, 
       port, 
-      ttl 
+      ttl,
+      deviceId,
     });
 
     res.json({ 
@@ -181,6 +194,13 @@ router.get('/link', requireJwtAuthOrRedirect, async (req, res) => {
       return res.status(404).send('Invalid or expired token');
     }
 
+    if (tokenData.userId && tokenData.userId !== user.id) {
+      logger.warn(`[MCP Link] Token already linked to a different user: ${user.id}`);
+      return res.status(403).send('Token already linked to a different user');
+    }
+
+    mcpTokenRegistry.bindTokenToUser(token, user.id);
+
     // Create a new MCP server configuration for this user
     // The server URL will point to the relay server with the token
     // For local dev, we assume relay is on localhost:8080 (or configured via env)
@@ -189,21 +209,15 @@ router.get('/link', requireJwtAuthOrRedirect, async (req, res) => {
     const relayProtocol = process.env.RELAY_PROTOCOL || 'ws';
     const relayUrl = `${relayProtocol}://${relayHost}:${relayPort}/mcp-proxy/${user.id}?token=${token}`;
 
-    const serverName = `VP-PlantUML-${user.id.substring(0, 6)}`;
-    
-    // Dynamically add the MCP server configuration for the user
-    const config = {
-      type: 'websocket',
-      url: relayUrl,
-      title: 'Visual Paradigm Plugin',
-      description: 'Connected via Relay',
-    };
+    const serverName = getVisualParadigmServerName(user.id);
+    const config = getVisualParadigmServerConfig(relayUrl);
 
     try {
-      const existingConfig = await getMCPServersRegistry().getServerConfig(serverName, user.id);
+      const registry = getMCPServersRegistry();
+      const existingConfig = await registry.getServerConfig(serverName, user.id);
 
       if (existingConfig) {
-        await getMCPServersRegistry().updateServer(
+        await registry.updateServer(
           serverName,
           config,
           'DB',
@@ -211,13 +225,21 @@ router.get('/link', requireJwtAuthOrRedirect, async (req, res) => {
         );
         logger.info(`[MCP Link] Updated MCP server '${serverName}' for user ${user.id}`);
       } else {
-        await getMCPServersRegistry().addServer(
+        const creationConfig = { ...config, title: serverName };
+        const result = await registry.addServer(
           serverName,
-          config,
+          creationConfig,
           'DB',
           user.id
         );
-        logger.info(`[MCP Link] Added MCP server '${serverName}' for user ${user.id}`);
+        if (result.serverName === serverName) {
+          await registry.updateServer(serverName, config, 'DB', user.id);
+        } else {
+          logger.warn(
+            `[MCP Link] Expected server '${serverName}' but registry created '${result.serverName}'`,
+          );
+        }
+        logger.info(`[MCP Link] Added MCP server '${result.serverName}' for user ${user.id}`);
       }
     } catch (err) {
       logger.error(`[MCP Link] Failed to add/update MCP server '${serverName}'`, err);
@@ -225,7 +247,11 @@ router.get('/link', requireJwtAuthOrRedirect, async (req, res) => {
       // For now, proceed to redirect
     }
 
-    res.redirect(`/?mcpLinkSuccess=true&serverName=${encodeURIComponent(serverName)}&token=${encodeURIComponent(token)}`);
+    const redirectParams = new URLSearchParams({
+      mcpLinkSuccess: 'true',
+      serverName,
+    });
+    res.redirect(`/?${redirectParams.toString()}`);
     
   } catch (error) {
     logger.error('[MCP Link] Failed to link token', error);
