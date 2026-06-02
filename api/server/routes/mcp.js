@@ -72,6 +72,111 @@ const getVisualParadigmServerConfig = (relayUrl) => ({
   description: 'Connected via Visual Paradigm relay',
 });
 
+const getVisualParadigmToolKeys = (serverName, tools = []) => {
+  const toolKeys = [`${Constants.mcp_server}${Constants.mcp_delimiter}${serverName}`];
+  for (const tool of tools) {
+    if (!tool?.name) {
+      continue;
+    }
+    toolKeys.push(`${tool.name}${Constants.mcp_delimiter}${serverName}`);
+  }
+  return toolKeys;
+};
+
+const getRequestedAgentIds = (req) => {
+  const rawAgentId = req.query.agent_id || req.query.agentId;
+  if (!rawAgentId) {
+    return [];
+  }
+  const values = Array.isArray(rawAgentId) ? rawAgentId : [rawAgentId];
+  return values.filter((agentId) => typeof agentId === 'string' && agentId.trim() !== '');
+};
+
+const attachVisualParadigmToAgents = async ({ req, user, serverName, tools }) => {
+  const toolKeys = getVisualParadigmToolKeys(serverName, tools);
+  const requestedAgentIds = getRequestedAgentIds(req);
+  const agentQuery = {
+    author: user.id,
+    ...(requestedAgentIds.length > 0 ? { id: { $in: requestedAgentIds } } : {}),
+  };
+  const agents = await db.getAgents(agentQuery);
+
+  if (!agents.length) {
+    logger.warn(`[MCP Link] No owned agents found for Visual Paradigm auto-attach: ${user.id}`);
+    return 0;
+  }
+
+  let updatedCount = 0;
+  await Promise.all(
+    agents.map(async (agent) => {
+      const currentTools = Array.isArray(agent.tools) ? agent.tools : [];
+      const mergedTools = Array.from(new Set([...currentTools, ...toolKeys]));
+      if (mergedTools.length === currentTools.length) {
+        return;
+      }
+      await db.updateAgent(
+        { id: agent.id },
+        { tools: mergedTools },
+        { updatingUserId: user.id },
+      );
+      updatedCount++;
+    }),
+  );
+  logger.info(
+    `[MCP Link] Attached '${serverName}' to ${updatedCount}/${agents.length} owned agent(s) for user ${user.id}`,
+  );
+  return updatedCount;
+};
+
+const initializeVisualParadigmServer = async ({ req, user, serverName }) => {
+  const mcpManager = getMCPManager();
+  const configServers = await resolveConfigServers(req);
+  const serverConfig = await getMCPServersRegistry().getServerConfig(
+    serverName,
+    user.id,
+    configServers,
+  );
+
+  if (!serverConfig) {
+    logger.warn(`[MCP Link] Server '${serverName}' not found after link for user ${user.id}`);
+    return null;
+  }
+
+  await mcpManager.disconnectUserConnection(user.id, serverName);
+
+  /** @type {Record<string, Record<string, string>> | undefined} */
+  let userMCPAuthMap;
+  if (serverConfig.customUserVars && typeof serverConfig.customUserVars === 'object') {
+    userMCPAuthMap = await getUserMCPAuthMap({
+      userId: user.id,
+      servers: [serverName],
+      findPluginAuthsByKeys: db.findPluginAuthsByKeys,
+    });
+  }
+
+  const result = await reinitMCPServer({
+    user,
+    serverName,
+    serverConfig,
+    configServers,
+    userMCPAuthMap,
+  });
+
+  if (!result?.success) {
+    logger.warn(`[MCP Link] Auto-initialize failed for '${serverName}' and user ${user.id}`);
+    return result ?? null;
+  }
+
+  await attachVisualParadigmToAgents({
+    req,
+    user,
+    serverName,
+    tools: result.tools ?? [],
+  });
+
+  return result;
+};
+
 const checkMCPUsePermissions = generateCheckAccess({
   permissionType: PermissionTypes.MCP_SERVERS,
   permissions: [Permissions.USE],
@@ -182,7 +287,7 @@ const requireJwtAuthOrRedirect = (req, res, next) => {
 router.get('/link', requireJwtAuthOrRedirect, async (req, res) => {
   try {
     const { token } = req.query;
-    const user = req.user;
+    const user = createSafeUser(req.user);
     
     if (!token) {
       return res.status(400).send('Missing token');
@@ -197,6 +302,10 @@ router.get('/link', requireJwtAuthOrRedirect, async (req, res) => {
     if (tokenData.userId && tokenData.userId !== user.id) {
       logger.warn(`[MCP Link] Token already linked to a different user: ${user.id}`);
       return res.status(403).send('Token already linked to a different user');
+    }
+
+    if (!user.id) {
+      return res.status(401).send('User not authenticated');
     }
 
     mcpTokenRegistry.bindTokenToUser(token, user.id);
@@ -241,6 +350,8 @@ router.get('/link', requireJwtAuthOrRedirect, async (req, res) => {
         }
         logger.info(`[MCP Link] Added MCP server '${result.serverName}' for user ${user.id}`);
       }
+
+      await initializeVisualParadigmServer({ req, user, serverName });
     } catch (err) {
       logger.error(`[MCP Link] Failed to add/update MCP server '${serverName}'`, err);
       // If it fails (e.g. exists), we might want to update it or ignore
