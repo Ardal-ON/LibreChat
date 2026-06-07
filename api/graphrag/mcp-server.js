@@ -15,6 +15,27 @@ const STORE_DIR =
 const CHUNK_SIZE = Number.parseInt(process.env.GRAPH_RAG_CHUNK_SIZE ?? '1200', 10);
 const CHUNK_OVERLAP = Number.parseInt(process.env.GRAPH_RAG_CHUNK_OVERLAP ?? '160', 10);
 const UPLOADS_DIR = process.env.GRAPHRAG_UPLOADS_DIR ?? '/app/uploads';
+
+function buildMongoUserFilter(userId) {
+  const candidates = [userId];
+  try {
+    const { Types } = require('mongoose');
+    if (typeof userId === 'string' && Types.ObjectId.isValid(userId)) {
+      candidates.push(new Types.ObjectId(userId));
+    }
+  } catch {
+    // mongoose unavailable — string match only
+  }
+  return { $in: candidates };
+}
+
+function getUserUploadDirs(userId) {
+  return [
+    path.join(UPLOADS_DIR, userId),
+    path.join(UPLOADS_DIR, 'temp', userId),
+  ];
+}
+
 const MAX_INGEST_FILE_BYTES = Number.parseInt(process.env.GRAPHRAG_MAX_FILE_BYTES ?? '2097152', 10);
 const DEFAULT_MAX_GRAPH_NODES = Number.parseInt(process.env.GRAPHRAG_MAX_GRAPH_NODES ?? '100', 10);
 const MAX_RESULT_CONTENT_CHARS = Number.parseInt(process.env.GRAPHRAG_MAX_RESULT_CONTENT_CHARS ?? '420', 10);
@@ -757,7 +778,7 @@ async function getDbBackedTextFiles(userId) {
     const records = await collection
       .find(
         {
-          user: userId,
+          user: buildMongoUserFilter(userId),
           source: 'text',
           filename: { $regex: /\.(txt|md)$/i },
           text: { $type: 'string', $ne: '' },
@@ -796,9 +817,11 @@ async function getDbBackedTextFiles(userId) {
 
 async function getUploadedTextFiles(userId) {
   const files = [];
-  const userUploadDir = path.join(UPLOADS_DIR, userId);
 
-  if (fs.existsSync(userUploadDir)) {
+  for (const userUploadDir of getUserUploadDirs(userId)) {
+    if (!fs.existsSync(userUploadDir)) {
+      continue;
+    }
     const allFiles = [];
     walkFilesRecursive(userUploadDir, allFiles);
     files.push(
