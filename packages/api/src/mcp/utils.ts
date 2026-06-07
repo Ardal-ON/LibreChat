@@ -250,3 +250,23 @@ export function generateServerNameFromTitle(title: string): string {
 
   return slug || 'mcp-server'; // Fallback if empty
 }
+
+export const GRAPHRAG_SERVER = 'graphrag-local';
+export const LC_USER_ID_KEY = '__lc_user_id';
+
+export function withGraphRagUserContext(
+  toolArguments: Record<string, unknown> | undefined,
+  serverName: string,
+  userId?: string,
+): Record<string, unknown> | undefined {
+  if (normalizeServerName(serverName) !== GRAPHRAG_SERVER || !userId) {
+    return toolArguments;
+  }
+
+  const parsed =
+    toolArguments != null && typeof toolArguments === 'object' && !Array.isArray(toolArguments)
+      ? toolArguments
+      : {};
+
+  return { ...parsed, [LC_USER_ID_KEY]: userId };
+}

@@ -21,7 +21,12 @@ import { preProcessGraphTokens } from '~/utils/graph';
 import { formatToolContent } from './parsers';
 import { MCPConnection } from './connection';
 import { processMCPEnv } from '~/utils/env';
-import { isUserSourced, requiresOAuthMachinery, requiresUserScopedConnection } from './utils';
+import {
+  isUserSourced,
+  requiresOAuthMachinery,
+  requiresUserScopedConnection,
+  withGraphRagUserContext,
+} from './utils';
 
 function createOboToolCallErrorMessage(
   logPrefix: string,
@@ -437,12 +442,14 @@ Please follow these instructions when using tools from the respective MCP server
 
       connection.setRequestHeaders(resolvedHeaders);
 
+      const resolvedToolArguments = withGraphRagUserContext(toolArguments, serverName, userId);
+
       const result = await connection.client.request(
         {
           method: 'tools/call',
           params: {
             name: toolName,
-            arguments: toolArguments,
+            arguments: resolvedToolArguments,
           },
         },
         CallToolResultSchema,

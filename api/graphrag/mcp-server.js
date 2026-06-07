@@ -36,6 +36,49 @@ function getUserUploadDirs(userId) {
   ];
 }
 
+function normalizeUserIdValue(value) {
+  if (value == null) {
+    return null;
+  }
+  return String(value);
+}
+
+function isFilepathOwnedByUser(filepath, userId) {
+  if (typeof filepath !== 'string' || filepath.length === 0) {
+    return true;
+  }
+  if (filepath.startsWith('db://') || filepath === 'document_parser') {
+    return true;
+  }
+  const normalizedPath = filepath.replace(/\\/g, '/');
+  return (
+    normalizedPath.includes(`/uploads/${userId}/`) ||
+    normalizedPath.includes(`/uploads/temp/${userId}/`)
+  );
+}
+
+function isDbRecordOwnedByUser(record, userId) {
+  const recordUser = normalizeUserIdValue(record?.user);
+  if (recordUser && recordUser !== userId) {
+    return false;
+  }
+  return isFilepathOwnedByUser(record?.filepath, userId);
+}
+
+function dedupeUploadedFiles(files) {
+  const seen = new Set();
+  const deduped = [];
+  for (const file of files) {
+    const key = file.file_id ?? file.path ?? file.basename;
+    if (!key || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    deduped.push(file);
+  }
+  return deduped;
+}
+
 const MAX_INGEST_FILE_BYTES = Number.parseInt(process.env.GRAPHRAG_MAX_FILE_BYTES ?? '2097152', 10);
 const DEFAULT_MAX_GRAPH_NODES = Number.parseInt(process.env.GRAPHRAG_MAX_GRAPH_NODES ?? '100', 10);
 const MAX_RESULT_CONTENT_CHARS = Number.parseInt(process.env.GRAPHRAG_MAX_RESULT_CONTENT_CHARS ?? '420', 10);
@@ -676,17 +719,19 @@ function queryGraphDocument(doc, rawQuery, topK = 5, minScore = 0) {
 
 function listDocuments(userId) {
   const store = loadStore(userId);
-  return Object.entries(store.files).map(([key, doc]) => {
-    const normalizedDoc = normalizeStoredDoc(doc, key);
-    return {
-      file_id: normalizedDoc.file_id,
-      filename: normalizedDoc.filename,
-      entity_id: normalizedDoc.entity_id ?? null,
-      user_id: normalizedDoc.user_id ?? userId,
-      chunkCount: normalizedDoc.chunkCount ?? normalizedDoc.nodes?.length ?? 0,
-      updatedAt: normalizedDoc.updatedAt,
-    };
-  });
+  return Object.entries(store.files)
+    .map(([key, doc]) => {
+      const normalizedDoc = normalizeStoredDoc(doc, key);
+      return {
+        file_id: normalizedDoc.file_id,
+        filename: normalizedDoc.filename,
+        entity_id: normalizedDoc.entity_id ?? null,
+        user_id: normalizedDoc.user_id ?? userId,
+        chunkCount: normalizedDoc.chunkCount ?? normalizedDoc.nodes?.length ?? 0,
+        updatedAt: normalizedDoc.updatedAt,
+      };
+    })
+    .filter((doc) => doc.user_id === userId);
 }
 
 function getDocumentTotalChars(doc) {
@@ -789,6 +834,7 @@ async function getDbBackedTextFiles(userId) {
             filename: 1,
             filepath: 1,
             bytes: 1,
+            user: 1,
             createdAt: 1,
             updatedAt: 1,
             text: 1,
@@ -797,18 +843,21 @@ async function getDbBackedTextFiles(userId) {
       )
       .toArray();
 
-    return records.map((record) => ({
-      storage: 'db',
-      file_id: record.file_id,
-      basename: record.filename,
-      path: record.filepath || `db://${record.file_id}`,
-      mtimeMs: new Date(record.updatedAt || record.createdAt || 0).getTime() || 0,
-      size:
-        typeof record.bytes === 'number'
-          ? record.bytes
-          : Buffer.byteLength(record.text || '', 'utf8'),
-      text: record.text,
-    }));
+    return records
+      .filter((record) => isDbRecordOwnedByUser(record, userId))
+      .map((record) => ({
+        storage: 'db',
+        file_id: record.file_id,
+        basename: record.filename,
+        path: record.filepath || `db://${record.file_id}`,
+        mtimeMs: new Date(record.updatedAt || record.createdAt || 0).getTime() || 0,
+        size:
+          typeof record.bytes === 'number'
+            ? record.bytes
+            : Buffer.byteLength(record.text || '', 'utf8'),
+        text: record.text,
+        user_id: userId,
+      }));
   } catch (error) {
     console.error('[graphrag-mcp] Failed to list DB-backed text uploads:', error.message);
     return [];
@@ -837,7 +886,7 @@ async function getUploadedTextFiles(userId) {
 
   files.push(...(await getDbBackedTextFiles(userId)));
 
-  return files.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return dedupeUploadedFiles(files).sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
 async function getLatestUploadedFileByNameIfExists(filename, userId) {
@@ -1789,13 +1838,20 @@ async function main() {
         storage: f.storage,
         file_id: f.file_id ?? null,
         bytes: f.size,
+        user_id: userId,
       }));
-      return textResponse({ status: 'ok', uploads_dir: UPLOADS_DIR, count: files.length, files });
+      return textResponse({
+        status: 'ok',
+        user_id: userId,
+        uploads_dir: UPLOADS_DIR,
+        count: files.length,
+        files,
+      });
     }
 
     if (name === 'graphrag_list_documents') {
       const documents = listDocuments(userId);
-      return textResponse({ status: 'ok', count: documents.length, documents });
+      return textResponse({ status: 'ok', user_id: userId, count: documents.length, documents });
     }
 
     if (name === 'graphrag_delete_documents') {
