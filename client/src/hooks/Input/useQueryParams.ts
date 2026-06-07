@@ -19,6 +19,7 @@ import {
   logger,
 } from '~/utils';
 import { useAuthContext, useAgentsMap, useDefaultConvo, useSubmitMessage } from '~/hooks';
+import { useMCPServerManager } from '~/hooks/MCP/useMCPServerManager';
 import { startupConfigKey, useGetAgentByIdQuery } from '~/data-provider';
 import { useChatContext, useChatFormContext } from '~/Providers';
 import store from '~/store';
@@ -67,6 +68,7 @@ export default function useQueryParams({
   const { submitMessage } = useSubmitMessage();
 
   const queryClient = useQueryClient();
+  const { initializeServer } = useMCPServerManager();
   const { conversation, newConversation } = useChatContext();
 
   const urlAgentId = searchParams.get('agent_id') || '';
@@ -231,6 +233,7 @@ export default function useQueryParams({
       return;
     }
 
+    const linkedServerName = searchParams.get('serverName') ?? '';
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('mcpLinkSuccess');
     nextParams.delete('serverName');
@@ -242,8 +245,11 @@ export default function useQueryParams({
         queryClient.invalidateQueries([QueryKeys.mcpTools]),
         queryClient.invalidateQueries([QueryKeys.agents]),
       ]);
+      if (linkedServerName) {
+        await initializeServer(linkedServerName, false);
+      }
     })();
-  }, [searchParams, setSearchParams, queryClient]);
+  }, [searchParams, setSearchParams, queryClient, initializeServer]);
 
   useEffect(() => {
     if (searchParams.get('mcpLinkSuccess') === 'true') {

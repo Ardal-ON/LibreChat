@@ -199,7 +199,22 @@ async function createActionTool({
       /** @type {import('librechat-data-provider').ActionMetadataRuntime} */
       const metadata = action.metadata;
       const executor = requestBuilder.createExecutor();
-      const preparedExecutor = executor.setParams(toolInput ?? {});
+      const params =
+        typeof toolInput === 'object' && toolInput !== null && !Array.isArray(toolInput)
+          ? { ...toolInput }
+          : {};
+      const domain = String(metadata.domain ?? '');
+      if (domain.includes('aidio-backend')) {
+        const conversationId =
+          streamId ?? config?.metadata?.thread_id ?? config?.configurable?.thread_id;
+        if (conversationId && params.conversation_id == null) {
+          params.conversation_id = conversationId;
+        }
+        if (userId && params.user_id == null) {
+          params.user_id = userId;
+        }
+      }
+      const preparedExecutor = executor.setParams(params);
 
       if (metadata.auth && metadata.auth.type !== AuthTypeEnum.None) {
         try {

@@ -26,6 +26,7 @@ const {
   isEnabled,
   validateOAuthSession,
   OAUTH_SESSION_COOKIE,
+  isMCPInspectionFailedError,
 } = require('@librechat/api');
 const {
   createMCPServerController,
@@ -61,7 +62,11 @@ const router = Router();
 const OAUTH_CSRF_COOKIE_PATH = '/api/mcp';
 const VISUAL_PARADIGM_SERVER_PREFIX = 'vp';
 const VISUAL_PARADIGM_SERVER_TITLE = 'Visual Paradigm Plugin';
-const DEFAULT_VISUAL_PARADIGM_AGENT_NAMES = ['AIDIO'];
+const DEFAULT_VISUAL_PARADIGM_AGENT_NAMES = ['AIDIO', 'SEMAA'];
+const DEFAULT_VISUAL_PARADIGM_TOOLS = [
+  { name: 'get_current_diagram' },
+  { name: 'create_diagram' },
+];
 
 const getVisualParadigmServerName = (userId) =>
   normalizeServerName(`${VISUAL_PARADIGM_SERVER_PREFIX}-${userId}`);
@@ -86,10 +91,16 @@ const getVisualParadigmToolKeys = (serverName, tools = []) => {
 
 const getRequestedAgentIds = (req) => {
   const rawAgentId = req.query.agent_id || req.query.agentId;
-  if (!rawAgentId) {
-    return [];
+  const fromEnv =
+    process.env.VISUAL_PARADIGM_AGENT_ID || process.env.VP_MCP_AGENT_ID || '';
+  const values = [];
+  if (rawAgentId) {
+    const fromQuery = Array.isArray(rawAgentId) ? rawAgentId : [rawAgentId];
+    values.push(...fromQuery);
   }
-  const values = Array.isArray(rawAgentId) ? rawAgentId : [rawAgentId];
+  if (fromEnv.trim()) {
+    values.push(fromEnv.trim());
+  }
   return values.filter((agentId) => typeof agentId === 'string' && agentId.trim() !== '');
 };
 
@@ -146,6 +157,37 @@ const attachVisualParadigmToAgents = async ({ req, user, serverName, tools }) =>
   return updatedCount;
 };
 
+const upsertVisualParadigmServerConfig = async (registry, serverName, config, userId) => {
+  const creationConfig = { ...config, title: serverName };
+  const existingConfig = await registry.getServerConfig(serverName, userId);
+
+  try {
+    if (existingConfig) {
+      await registry.updateServer(serverName, creationConfig, 'DB', userId);
+      return { serverName, inspected: true };
+    }
+    const result = await registry.addServer(serverName, creationConfig, 'DB', userId);
+    const resolvedName = result.serverName;
+    if (resolvedName !== serverName) {
+      await registry.updateServer(resolvedName, creationConfig, 'DB', userId);
+    }
+    return { serverName: resolvedName, inspected: true };
+  } catch (err) {
+    if (!isMCPInspectionFailedError(err)) {
+      throw err;
+    }
+    logger.warn(
+      `[MCP Link] Inspection failed for '${serverName}', saving deferred config for user ${userId}`,
+    );
+    const result = await registry.upsertUserServerWithoutInspection(
+      serverName,
+      creationConfig,
+      userId,
+    );
+    return { serverName: result.serverName, inspected: false };
+  }
+};
+
 const initializeVisualParadigmServer = async ({ req, user, serverName }) => {
   const mcpManager = getMCPManager();
   const configServers = await resolveConfigServers(req);
@@ -185,12 +227,14 @@ const initializeVisualParadigmServer = async ({ req, user, serverName }) => {
     return result ?? null;
   }
 
-  await attachVisualParadigmToAgents({
-    req,
-    user,
-    serverName,
-    tools: result.tools ?? [],
-  });
+  if (result.tools?.length) {
+    await attachVisualParadigmToAgents({
+      req,
+      user,
+      serverName,
+      tools: result.tools,
+    });
+  }
 
   return result;
 };
@@ -339,46 +383,35 @@ router.get('/link', requireJwtAuthOrRedirect, async (req, res) => {
     const serverName = getVisualParadigmServerName(user.id);
     const config = getVisualParadigmServerConfig(relayUrl);
 
+    let resolvedServerName = serverName;
     try {
       const registry = getMCPServersRegistry();
-      const existingConfig = await registry.getServerConfig(serverName, user.id);
+      const upsertResult = await upsertVisualParadigmServerConfig(
+        registry,
+        serverName,
+        config,
+        user.id,
+      );
+      resolvedServerName = upsertResult.serverName;
+      logger.info(
+        `[MCP Link] Saved MCP server '${resolvedServerName}' for user ${user.id} (inspected=${upsertResult.inspected})`,
+      );
 
-      if (existingConfig) {
-        await registry.updateServer(
-          serverName,
-          config,
-          'DB',
-          user.id
-        );
-        logger.info(`[MCP Link] Updated MCP server '${serverName}' for user ${user.id}`);
-      } else {
-        const creationConfig = { ...config, title: serverName };
-        const result = await registry.addServer(
-          serverName,
-          creationConfig,
-          'DB',
-          user.id
-        );
-        if (result.serverName === serverName) {
-          await registry.updateServer(serverName, config, 'DB', user.id);
-        } else {
-          logger.warn(
-            `[MCP Link] Expected server '${serverName}' but registry created '${result.serverName}'`,
-          );
-        }
-        logger.info(`[MCP Link] Added MCP server '${result.serverName}' for user ${user.id}`);
-      }
+      await attachVisualParadigmToAgents({
+        req,
+        user,
+        serverName: resolvedServerName,
+        tools: DEFAULT_VISUAL_PARADIGM_TOOLS,
+      });
 
-      await initializeVisualParadigmServer({ req, user, serverName });
+      await initializeVisualParadigmServer({ req, user, serverName: resolvedServerName });
     } catch (err) {
-      logger.error(`[MCP Link] Failed to add/update MCP server '${serverName}'`, err);
-      // If it fails (e.g. exists), we might want to update it or ignore
-      // For now, proceed to redirect
+      logger.error(`[MCP Link] Failed to link Visual Paradigm MCP server '${serverName}'`, err);
     }
 
     const redirectParams = new URLSearchParams({
       mcpLinkSuccess: 'true',
-      serverName,
+      serverName: resolvedServerName,
     });
     res.redirect(`/?${redirectParams.toString()}`);
     

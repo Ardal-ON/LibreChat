@@ -376,6 +376,38 @@ export class MCPServersRegistry {
   }
 
   /**
+   * Persists a user-managed MCP server without live inspection.
+   * Used when the remote endpoint is not yet reachable (e.g. Visual Paradigm relay before plugin connects).
+   */
+  public async upsertUserServerWithoutInspection(
+    serverName: string,
+    config: t.MCPOptions,
+    userId: string,
+    reservedServerNames?: Iterable<string>,
+  ): Promise<t.AddServerResult> {
+    const tagged: t.ParsedServerConfig = {
+      ...(config as t.ParsedServerConfig),
+      inspectionFailed: true,
+      source: 'user',
+      title: config.title ?? serverName,
+    };
+    const existing = await this.dbConfigsRepo.get(serverName, userId);
+    if (existing) {
+      await this.dbConfigsRepo.update(serverName, tagged, userId);
+      await this.invalidateServerReadCaches(serverName, userId);
+      return { serverName, config: tagged };
+    }
+    const result = await this.dbConfigsRepo.add(
+      serverName,
+      tagged,
+      userId,
+      await this.getOperatorManagedServerNames(reservedServerNames),
+    );
+    await this.invalidateServerReadCaches(result.serverName, userId);
+    return result;
+  }
+
+  /**
    * Re-inspects a server that previously failed initialization.
    * Uses the stored stub config to attempt a full inspection and replaces the stub on success.
    */

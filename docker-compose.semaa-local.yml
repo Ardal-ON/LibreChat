@@ -23,6 +23,8 @@ services:
       - RELAY_HOST=relay.semaa.site
       - RELAY_PROTOCOL=wss
       - RELAY_PORT=443
+      - VISUAL_PARADIGM_AGENT_ID=${VISUAL_PARADIGM_AGENT_ID:-agent_SemaaGRVP2026x}
+      - VISUAL_PARADIGM_AGENT_NAMES=${VISUAL_PARADIGM_AGENT_NAMES:-SEMAA}
     volumes:
       - type: bind
         source: ./.env
