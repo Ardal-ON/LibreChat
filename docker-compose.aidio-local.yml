@@ -1,0 +1,15 @@
+# Local API image build for aidio.now (same pattern as docker-compose.semaa-local.yml).
+#
+#   docker compose -f deploy-compose.yml -f docker-compose.aidio.yml -f docker-compose.aidio-local.yml build api
+#   docker compose --env-file .env.aidio -p aidio -f deploy-compose.yml -f docker-compose.aidio.yml -f docker-compose.aidio-local.yml up -d
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.multi
+      target: api-build
+    image: librechat-semaa-api:local
+
+  graphrag_api:
+    image: librechat-semaa-api:local

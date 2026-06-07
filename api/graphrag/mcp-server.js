@@ -1,14 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const { ListToolsRequestSchema, CallToolRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 const { createGraphPayload, validateGraphPayload } = require('./graph-contract');
+const {
+  requireUserId,
+  stripUserId,
+  loadStore,
+  saveStore,
+  docOwnedByUser,
+} = require('./userStore');
 
 const STORE_DIR =
   process.env.GRAPH_RAG_STORE_DIR ?? path.join(process.cwd(), 'api', 'data', 'graphrag');
-const STORE_FILE = path.join(STORE_DIR, 'store.json');
 const CHUNK_SIZE = Number.parseInt(process.env.GRAPH_RAG_CHUNK_SIZE ?? '1200', 10);
 const CHUNK_OVERLAP = Number.parseInt(process.env.GRAPH_RAG_CHUNK_OVERLAP ?? '160', 10);
 const UPLOADS_DIR = process.env.GRAPHRAG_UPLOADS_DIR ?? '/app/uploads';
@@ -49,12 +52,18 @@ function buildGraphId(seed) {
   return crypto.createHash('sha1').update(seed).digest('hex').slice(0, 16);
 }
 
-function putGraphResultInCache(payload) {
+function buildGraphCacheKey(userId, graph_id) {
+  return `${userId}:${graph_id}`;
+}
+
+function putGraphResultInCache(userId, payload) {
   const baseSeed = `${Date.now()}:${Math.random()}:${JSON.stringify(payload.graph?.meta ?? {})}`;
   const graph_id = buildGraphId(baseSeed);
+  const cacheKey = buildGraphCacheKey(userId, graph_id);
 
-  graphResultCache.set(graph_id, {
+  graphResultCache.set(cacheKey, {
     graph_id,
+    userId,
     payload,
     createdAt: Date.now(),
   });
@@ -69,11 +78,11 @@ function putGraphResultInCache(payload) {
   return graph_id;
 }
 
-function getGraphResultFromCache(graph_id) {
+function getGraphResultFromCache(userId, graph_id) {
   if (typeof graph_id !== 'string' || graph_id.length === 0) {
     return null;
   }
-  return graphResultCache.get(graph_id) ?? null;
+  return graphResultCache.get(buildGraphCacheKey(userId, graph_id)) ?? null;
 }
 
 const stopWords = new Set([
@@ -103,23 +112,6 @@ const genericEntityTerms = new Set([
 ]);
 
 const noisyEntityPattern = /\b(see|chapter|chapters|table|tables|figure|figures|rule|rules|appendix|appendices)\b/i;
-
-function ensureStore() {
-  fs.mkdirSync(STORE_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_FILE)) {
-    fs.writeFileSync(STORE_FILE, JSON.stringify({ files: {} }, null, 2));
-  }
-}
-
-function loadStore() {
-  ensureStore();
-  return JSON.parse(fs.readFileSync(STORE_FILE, 'utf8'));
-}
-
-function saveStore(store) {
-  ensureStore();
-  fs.writeFileSync(STORE_FILE, JSON.stringify(store, null, 2));
-}
 
 function relationRecord(sourceLabel, relationLabel, targetLabel) {
   const sourceKey = normalizeEntityKey(sourceLabel);
@@ -402,6 +394,7 @@ function normalizeStoredDoc(doc, fallbackId) {
   const file_id = doc?.file_id ?? doc?.fileId ?? fallbackId;
   const filename = doc?.filename ?? doc?.fileName ?? String(file_id ?? 'unknown');
   const entity_id = doc?.entity_id ?? doc?.entityId ?? null;
+  const user_id = doc?.user_id ?? doc?.userId ?? null;
 
   const rawNodes = Array.isArray(doc?.nodes)
     ? doc.nodes
@@ -416,6 +409,7 @@ function normalizeStoredDoc(doc, fallbackId) {
     file_id,
     filename,
     entity_id,
+    user_id,
     nodes,
     chunkCount: doc?.chunkCount ?? nodes.length,
     updatedAt: doc?.updatedAt ?? doc?.createdAt ?? null,
@@ -531,7 +525,7 @@ function chunkText(text) {
   return chunks;
 }
 
-function buildGraphDocument({ file_id, filename, text, entity_id }) {
+function buildGraphDocument({ file_id, filename, text, entity_id, user_id }) {
   const chunks = chunkText(text);
   const nodes = [];
 
@@ -568,6 +562,7 @@ function buildGraphDocument({ file_id, filename, text, entity_id }) {
     file_id,
     filename,
     entity_id,
+    user_id,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     chunkCount: nodes.length,
@@ -658,14 +653,15 @@ function queryGraphDocument(doc, rawQuery, topK = 5, minScore = 0) {
   }));
 }
 
-function listDocuments() {
-  const store = loadStore();
+function listDocuments(userId) {
+  const store = loadStore(userId);
   return Object.entries(store.files).map(([key, doc]) => {
     const normalizedDoc = normalizeStoredDoc(doc, key);
     return {
       file_id: normalizedDoc.file_id,
       filename: normalizedDoc.filename,
       entity_id: normalizedDoc.entity_id ?? null,
+      user_id: normalizedDoc.user_id ?? userId,
       chunkCount: normalizedDoc.chunkCount ?? normalizedDoc.nodes?.length ?? 0,
       updatedAt: normalizedDoc.updatedAt,
     };
@@ -677,7 +673,14 @@ function getDocumentTotalChars(doc) {
   return nodes.reduce((total, node) => total + Buffer.byteLength(node?.content ?? '', 'utf8'), 0);
 }
 
-function ingestDocument({ file_id, filename, text, entity_id, allow_replace_with_shorter = false }) {
+function ingestDocument({
+  user_id,
+  file_id,
+  filename,
+  text,
+  entity_id,
+  allow_replace_with_shorter = false,
+}) {
   const normalized = typeof text === 'string' ? text.trim() : '';
   const placeholderPattern = /^document text for\s+.+\.(txt|md)$/i;
   const summarizedAttachmentPatterns = [
@@ -696,7 +699,7 @@ function ingestDocument({ file_id, filename, text, entity_id, allow_replace_with
     );
   }
 
-  const store = loadStore();
+  const store = loadStore(user_id);
   const existingDoc = store.files[file_id];
   if (existingDoc && allow_replace_with_shorter !== true) {
     const existingChars = getDocumentTotalChars(existingDoc);
@@ -713,9 +716,9 @@ function ingestDocument({ file_id, filename, text, entity_id, allow_replace_with
     }
   }
 
-  const doc = buildGraphDocument({ file_id, filename, text, entity_id });
+  const doc = buildGraphDocument({ file_id, filename, text, entity_id, user_id });
   store.files[file_id] = doc;
-  saveStore(store);
+  saveStore(user_id, store);
   return { file_id, filename: doc.filename, chunks: doc.chunkCount };
 }
 
@@ -738,7 +741,7 @@ function walkFilesRecursive(dir, collector) {
   }
 }
 
-async function getDbBackedTextFiles() {
+async function getDbBackedTextFiles(userId) {
   if (!process.env.MONGO_URI) {
     return [];
   }
@@ -754,6 +757,7 @@ async function getDbBackedTextFiles() {
     const records = await collection
       .find(
         {
+          user: userId,
           source: 'text',
           filename: { $regex: /\.(txt|md)$/i },
           text: { $type: 'string', $ne: '' },
@@ -790,12 +794,13 @@ async function getDbBackedTextFiles() {
   }
 }
 
-async function getUploadedTextFiles() {
+async function getUploadedTextFiles(userId) {
   const files = [];
+  const userUploadDir = path.join(UPLOADS_DIR, userId);
 
-  if (fs.existsSync(UPLOADS_DIR)) {
+  if (fs.existsSync(userUploadDir)) {
     const allFiles = [];
-    walkFilesRecursive(UPLOADS_DIR, allFiles);
+    walkFilesRecursive(userUploadDir, allFiles);
     files.push(
       ...allFiles.filter((filePath) => isSupportedTextExtension(filePath)).map((filePath) => ({
         storage: 'fs',
@@ -807,17 +812,17 @@ async function getUploadedTextFiles() {
     );
   }
 
-  files.push(...(await getDbBackedTextFiles()));
+  files.push(...(await getDbBackedTextFiles(userId)));
 
   return files.sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
-async function getLatestUploadedFileByNameIfExists(filename) {
+async function getLatestUploadedFileByNameIfExists(filename, userId) {
   if (typeof filename !== 'string' || filename.trim().length === 0) {
     return null;
   }
 
-  const allFiles = await getUploadedTextFiles();
+  const allFiles = await getUploadedTextFiles(userId);
   const normalizedName = filename.trim();
   const candidates = allFiles.filter((fileRecord) => {
     const base = fileRecord.basename;
@@ -838,8 +843,8 @@ async function getLatestUploadedFileByNameIfExists(filename) {
   return candidates[0];
 }
 
-async function findUploadedFileByName(filename) {
-  const allFiles = await getUploadedTextFiles();
+async function findUploadedFileByName(filename, userId) {
+  const allFiles = await getUploadedTextFiles(userId);
 
   const normalizedName = filename.trim();
   const candidates = allFiles.filter((fileRecord) => {
@@ -868,8 +873,8 @@ async function findUploadedFileByName(filename) {
   return candidates[0];
 }
 
-async function ingestUploadedFile({ filename, file_id, entity_id }) {
-  const found = await findUploadedFileByName(filename);
+async function ingestUploadedFile({ user_id, filename, file_id, entity_id }) {
+  const found = await findUploadedFileByName(filename, user_id);
 
   let text;
   let derivedFileId;
@@ -909,6 +914,7 @@ async function ingestUploadedFile({ filename, file_id, entity_id }) {
   }
 
   const result = ingestDocument({
+    user_id,
     file_id: derivedFileId,
     filename,
     text,
@@ -923,20 +929,30 @@ async function ingestUploadedFile({ filename, file_id, entity_id }) {
   };
 }
 
-function queryKnowledge({ query, top_k = 5, file_ids, min_score = 0, max_nodes = DEFAULT_MAX_GRAPH_NODES, auto_tune = true }) {
-  const store = loadStore();
+function filterDocsByFileIds(docs, file_ids) {
+  if (!Array.isArray(file_ids) || file_ids.length === 0) {
+    return docs;
+  }
+  const allowedIds = new Set(file_ids);
+  return docs.filter((doc) => allowedIds.has(doc.file_id));
+}
+
+function queryKnowledge({
+  user_id,
+  query,
+  top_k = 5,
+  file_ids,
+  min_score = 0,
+  max_nodes = DEFAULT_MAX_GRAPH_NODES,
+  auto_tune = true,
+}) {
+  const store = loadStore(user_id);
   const safeTopK = Math.min(12, Math.max(5, toSafePositiveInt(top_k, 5)));
   const safeMinScore = clampNumber(min_score, 0, 0, 1);
   const safeMaxNodes = toSafePositiveInt(max_nodes, DEFAULT_MAX_GRAPH_NODES);
 
   const normalizedDocs = Object.entries(store.files).map(([key, doc]) => normalizeStoredDoc(doc, key));
-
-  const candidates = normalizedDocs.filter((doc) => {
-    if (!Array.isArray(file_ids) || file_ids.length === 0) {
-      return true;
-    }
-    return file_ids.includes(doc.file_id);
-  });
+  const candidates = filterDocsByFileIds(normalizedDocs, file_ids);
 
   const rankResults = (topK, minScore) => {
     const all = candidates.flatMap((doc) => queryGraphDocument(doc, query, topK, minScore));
@@ -1017,9 +1033,24 @@ function queryKnowledge({ query, top_k = 5, file_ids, min_score = 0, max_nodes =
   };
 }
 
-function batchQueryKnowledge({ queries = [], top_k = 5, file_ids, min_score = 0, max_nodes = DEFAULT_MAX_GRAPH_NODES }) {
+function batchQueryKnowledge({
+  user_id,
+  queries = [],
+  top_k = 5,
+  file_ids,
+  min_score = 0,
+  max_nodes = DEFAULT_MAX_GRAPH_NODES,
+}) {
   return queries.map((query) => {
-    const { results, graph, controls } = queryKnowledge({ query, top_k, file_ids, min_score, max_nodes, auto_tune: true });
+    const { results, graph, controls } = queryKnowledge({
+      user_id,
+      query,
+      top_k,
+      file_ids,
+      min_score,
+      max_nodes,
+      auto_tune: true,
+    });
     return {
       query,
       count: results.length,
@@ -1210,12 +1241,15 @@ function buildQuerySubgraph({ documents, query, file_ids, results, max_nodes }) 
   };
 }
 
-function deleteDocuments(file_ids = []) {
-  const store = loadStore();
+function deleteDocuments(file_ids = [], userId) {
+  const store = loadStore(userId);
   let deleted = 0;
   for (const requestedId of file_ids) {
     for (const [storeKey, doc] of Object.entries(store.files)) {
       const normalizedDoc = normalizeStoredDoc(doc, storeKey);
+      if (!docOwnedByUser(normalizedDoc, userId)) {
+        continue;
+      }
       if (requestedId === normalizedDoc.file_id || requestedId === storeKey) {
         delete store.files[storeKey];
         deleted += 1;
@@ -1223,7 +1257,7 @@ function deleteDocuments(file_ids = []) {
       }
     }
   }
-  saveStore(store);
+  saveStore(userId, store);
   return { deleted, requested: file_ids.length };
 }
 
@@ -1539,7 +1573,9 @@ const tools = [
 ];
 
 async function main() {
-  ensureStore();
+  const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
+  const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
+  const { ListToolsRequestSchema, CallToolRequestSchema } = require('@modelcontextprotocol/sdk/types.js');
 
   const server = new Server(
     {
@@ -1556,13 +1592,25 @@ async function main() {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args = {} } = request.params;
+    const { name, arguments: rawArgs = {} } = request.params;
+
+    let userId;
+    try {
+      userId = requireUserId(rawArgs);
+    } catch (error) {
+      return {
+        isError: true,
+        content: [{ type: 'text', text: error.message }],
+      };
+    }
+
+    const args = stripUserId(rawArgs);
 
     if (name === 'graphrag_ingest_document') {
       try {
         const normalizedText = typeof args.text === 'string' ? args.text.trim() : '';
         const incomingBytes = Buffer.byteLength(normalizedText, 'utf8');
-        const uploadedCandidate = await getLatestUploadedFileByNameIfExists(args.filename);
+        const uploadedCandidate = await getLatestUploadedFileByNameIfExists(args.filename, userId);
         if (
           uploadedCandidate &&
           args.allow_replace_with_shorter !== true &&
@@ -1575,6 +1623,7 @@ async function main() {
         }
 
         const result = ingestDocument({
+          user_id: userId,
           file_id: args.file_id,
           filename: args.filename,
           text: args.text,
@@ -1598,6 +1647,7 @@ async function main() {
     if (name === 'graphrag_query_with_graph') {
       const includeResults = args.include_results !== false;
       const { results, graph, controls } = queryKnowledge({
+        user_id: userId,
         query: args.query,
         top_k: args.top_k,
         min_score: Math.max(0.3, args.min_score ?? 0.3),
@@ -1615,7 +1665,7 @@ async function main() {
         ...(includeResults ? { results } : {}),
       };
 
-      const graph_id = putGraphResultInCache(fullGraphPayload);
+      const graph_id = putGraphResultInCache(userId, fullGraphPayload);
       const summary = [
         'Graph generated and attached via ui_resources.',
         `result_count: ${results.length}`,
@@ -1632,7 +1682,7 @@ async function main() {
     }
 
     if (name === 'graphrag_get_graph_by_id') {
-      const graphRecord = getGraphResultFromCache(args.graph_id);
+      const graphRecord = getGraphResultFromCache(userId, args.graph_id);
       if (!graphRecord) {
         return {
           isError: true,
@@ -1671,6 +1721,7 @@ async function main() {
       }
 
       const items = batchQueryKnowledge({
+        user_id: userId,
         queries,
         top_k: args.top_k,
         min_score: args.min_score,
@@ -1689,6 +1740,7 @@ async function main() {
     if (name === 'graphrag_ingest_uploaded_file') {
       try {
         const result = await ingestUploadedFile({
+          user_id: userId,
           filename: args.filename,
           file_id: args.file_id,
           entity_id: args.entity_id,
@@ -1708,7 +1760,7 @@ async function main() {
     }
 
     if (name === 'graphrag_list_uploaded_text_files') {
-      const files = (await getUploadedTextFiles()).map((f) => ({
+      const files = (await getUploadedTextFiles(userId)).map((f) => ({
         basename: f.basename,
         path: f.path,
         storage: f.storage,
@@ -1719,12 +1771,12 @@ async function main() {
     }
 
     if (name === 'graphrag_list_documents') {
-      const documents = listDocuments();
+      const documents = listDocuments(userId);
       return textResponse({ status: 'ok', count: documents.length, documents });
     }
 
     if (name === 'graphrag_delete_documents') {
-      const result = deleteDocuments(args.file_ids);
+      const result = deleteDocuments(args.file_ids, userId);
       return textResponse({ status: 'ok', action: 'deleted', ...result });
     }
 
@@ -1738,7 +1790,20 @@ async function main() {
   await server.connect(transport);
 }
 
-main().catch((error) => {
-  console.error('[graphrag-mcp] Fatal error:', error);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('[graphrag-mcp] Fatal error:', error);
+    process.exit(1);
+  });
+} else {
+  module.exports = {
+    ingestDocument,
+    listDocuments,
+    deleteDocuments,
+    queryKnowledge,
+    putGraphResultInCache,
+    getGraphResultFromCache,
+    buildGraphCacheKey,
+    getUploadedTextFiles,
+  };
+}

@@ -3,12 +3,12 @@ const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const { loadStore, saveStore, docOwnedByUser } = require('./userStore');
 
 const app = express();
 
 const GRAPH_RAG_PORT = Number.parseInt(process.env.GRAPH_RAG_PORT ?? '8001', 10);
 const STORE_DIR = process.env.GRAPH_RAG_STORE_DIR ?? path.join(process.cwd(), 'api', 'data', 'graphrag');
-const STORE_FILE = path.join(STORE_DIR, 'store.json');
 const CHUNK_SIZE = Number.parseInt(process.env.GRAPH_RAG_CHUNK_SIZE ?? '1200', 10);
 const CHUNK_OVERLAP = Number.parseInt(process.env.GRAPH_RAG_CHUNK_OVERLAP ?? '160', 10);
 
@@ -19,23 +19,6 @@ const stopWords = new Set([
   'to', 'was', 'we', 'were', 'what', 'when', 'where', 'which', 'who', 'why', 'with', 'you', 'your',
   'yours', 'can', 'could', 'would', 'should', 'will', 'may', 'might', 'than', 'then', 'there', 'here',
 ]);
-
-function ensureStore() {
-  fs.mkdirSync(STORE_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_FILE)) {
-    fs.writeFileSync(STORE_FILE, JSON.stringify({ files: {} }, null, 2));
-  }
-}
-
-function loadStore() {
-  ensureStore();
-  return JSON.parse(fs.readFileSync(STORE_FILE, 'utf8'));
-}
-
-function saveStore(store) {
-  ensureStore();
-  fs.writeFileSync(STORE_FILE, JSON.stringify(store, null, 2));
-}
 
 function normalizeWhitespace(text) {
   return text.replace(/\r\n/g, '\n').replace(/\t/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
@@ -100,7 +83,7 @@ function chunkText(text) {
   return chunks;
 }
 
-function buildGraphDocument({ fileId, filename, text, entityId }) {
+function buildGraphDocument({ fileId, filename, text, entityId, userId }) {
   const chunks = chunkText(text).map((value, index) => ({
     id: `${fileId}:${index}`,
     index,
@@ -148,6 +131,8 @@ function buildGraphDocument({ fileId, filename, text, entityId }) {
     fileId,
     filename,
     entityId: entityId ?? null,
+    userId,
+    user_id: userId,
     updatedAt: new Date().toISOString(),
     textHash: crypto.createHash('sha256').update(text).digest('hex'),
     chunks,
@@ -220,6 +205,36 @@ function queryGraphDocument(document, query, requestedCount) {
     ]);
 }
 
+function getRequestUserId(req, res) {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'User not authenticated' });
+    return null;
+  }
+  return userId;
+}
+
+function countAllUserDocuments() {
+  const usersDir = path.join(STORE_DIR, 'users');
+  if (!fs.existsSync(usersDir)) {
+    return 0;
+  }
+
+  let total = 0;
+  for (const entry of fs.readdirSync(usersDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    try {
+      const store = loadStore(entry.name);
+      total += Object.keys(store.files ?? {}).length;
+    } catch {
+      continue;
+    }
+  }
+  return total;
+}
+
 function authMiddleware(req, res, next) {
   if (!process.env.JWT_SECRET) {
     next();
@@ -245,20 +260,24 @@ app.use(express.json({ limit: '10mb' }));
 app.use(authMiddleware);
 
 app.get('/health', (_req, res) => {
-  const store = loadStore();
-  res.json({ status: 'ok', files: Object.keys(store.files).length });
+  res.json({ status: 'ok', files: countAllUserDocuments() });
 });
 
 app.post('/ingest-text', (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) {
+    return;
+  }
+
   const { file_id: fileId, filename, text, entity_id: entityId } = req.body ?? {};
   if (!fileId || !filename || !text) {
     res.status(400).json({ error: 'file_id, filename, and text are required' });
     return;
   }
 
-  const store = loadStore();
-  store.files[fileId] = buildGraphDocument({ fileId, filename, text, entityId });
-  saveStore(store);
+  const store = loadStore(userId);
+  store.files[fileId] = buildGraphDocument({ fileId, filename, text, entityId, userId });
+  saveStore(userId, store);
 
   res.json({
     status: true,
@@ -269,15 +288,25 @@ app.post('/ingest-text', (req, res) => {
 });
 
 app.post('/query', (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) {
+    return;
+  }
+
   const { file_id: fileId, query, k = 5, entity_id: entityId } = req.body ?? {};
   if (!fileId || !query) {
     res.status(400).json({ error: 'file_id and query are required' });
     return;
   }
 
-  const store = loadStore();
+  const store = loadStore(userId);
   const document = store.files[fileId];
   if (!document) {
+    res.json([]);
+    return;
+  }
+
+  if (!docOwnedByUser(document, userId)) {
     res.json([]);
     return;
   }
@@ -291,22 +320,36 @@ app.post('/query', (req, res) => {
 });
 
 app.delete('/documents', (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) {
+    return;
+  }
+
   const ids = Array.isArray(req.body) ? req.body : [];
-  const store = loadStore();
+  const store = loadStore(userId);
   let deleted = 0;
 
   for (const fileId of ids) {
-    if (store.files[fileId]) {
-      delete store.files[fileId];
-      deleted += 1;
+    const document = store.files[fileId];
+    if (!document || !docOwnedByUser(document, userId)) {
+      continue;
     }
+    delete store.files[fileId];
+    deleted += 1;
   }
 
-  saveStore(store);
+  saveStore(userId, store);
   res.json({ message: `Deleted ${deleted} GraphRAG document(s)` });
 });
 
-ensureStore();
-app.listen(GRAPH_RAG_PORT, '0.0.0.0', () => {
-  console.log(`GraphRAG service listening on port ${GRAPH_RAG_PORT}`);
-});
+if (require.main === module) {
+  app.listen(GRAPH_RAG_PORT, '0.0.0.0', () => {
+    console.log(`GraphRAG service listening on port ${GRAPH_RAG_PORT}`);
+  });
+}
+
+module.exports = {
+  app,
+  buildGraphDocument,
+  queryGraphDocument,
+};

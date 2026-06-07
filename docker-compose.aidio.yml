@@ -1,0 +1,158 @@
+services:
+  client:
+    profiles:
+      - donotstart
+
+  api:
+    container_name: aidio-librechat-api
+    depends_on:
+      - aidio-backend
+    env_file:
+      - .env.aidio
+    environment:
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/LibreChatAidio
+      - MEILI_HOST=http://meilisearch:7700
+      - RAG_PORT=${RAG_PORT:-8000}
+      - RAG_API_URL=http://rag_api:${RAG_PORT:-8000}
+      - GRAPH_RAG_PORT=${GRAPH_RAG_PORT:-8001}
+      - GRAPH_RAG_API_URL=http://graphrag_api:${GRAPH_RAG_PORT:-8001}
+      - DOMAIN_CLIENT=https://aidio.now
+      - DOMAIN_SERVER=https://aidio.now
+      - RELAY_HOST=relay.aidio.now
+      - RELAY_PROTOCOL=wss
+      - RELAY_PORT=443
+      - VISUAL_PARADIGM_AGENT_ID=${VISUAL_PARADIGM_AGENT_ID:-agent_rYJ648ctQk68RAet1hA5t}
+      - AIDIO_REQUIREMENT_AGENT_URL=http://aidio-backend:8090
+    volumes:
+      - type: bind
+        source: ./.env.aidio
+        target: /app/.env
+      - type: bind
+        source: ./librechat.yaml
+        target: /app/librechat.yaml
+      - ./images_aidio:/app/client/public/images
+      - ./uploads_aidio:/app/uploads
+      - ./logs_aidio:/app/api/logs
+      - ./api/graphrag:/app/api/graphrag:ro
+      - ./graphrag_data_aidio:/app/api/data/graphrag
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.librechat-aidio-http.rule=Host(`aidio.now`)"
+      - "traefik.http.routers.librechat-aidio-http.entrypoints=web"
+      - "traefik.http.routers.librechat-aidio-http.middlewares=librechat-aidio-https-redirect"
+      - "traefik.http.routers.librechat-aidio-http.service=librechat-aidio-svc"
+      - "traefik.http.routers.librechat-aidio.rule=Host(`aidio.now`)"
+      - "traefik.http.routers.librechat-aidio.entrypoints=websecure"
+      - "traefik.http.routers.librechat-aidio.tls.certresolver=${TRAEFIK_CERTRESOLVER:-leresolver}"
+      - "traefik.http.routers.librechat-aidio.service=librechat-aidio-svc"
+      - "traefik.http.middlewares.librechat-aidio-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.services.librechat-aidio-svc.loadbalancer.server.port=3080"
+      - "traefik.docker.network=librechat_edge"
+    networks:
+      - default
+      - edge
+
+  aidio-backend:
+    container_name: aidio-requirement-backend
+    build:
+      context: /home/arya/Aidio
+      dockerfile: Dockerfile.aidio
+    restart: unless-stopped
+    environment:
+      - AIDIO_PUBLIC_BASE_URL=https://aidio.now/aidio
+    expose:
+      - "8090"
+    volumes:
+      - /home/arya/Aidio/outputs:/app/outputs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.aidio-backend.rule=Host(`aidio.now`) && PathPrefix(`/aidio`)"
+      - "traefik.http.routers.aidio-backend.entrypoints=websecure"
+      - "traefik.http.routers.aidio-backend.tls.certresolver=${TRAEFIK_CERTRESOLVER:-leresolver}"
+      - "traefik.http.routers.aidio-backend.priority=100"
+      - "traefik.http.routers.aidio-backend.service=aidio-backend"
+      - "traefik.http.routers.aidio-backend.middlewares=aidio-backend-stripprefix,aidio-backend-headers"
+      - "traefik.http.middlewares.aidio-backend-stripprefix.stripprefix.prefixes=/aidio"
+      - "traefik.http.middlewares.aidio-backend-headers.headers.customrequestheaders.X-Forwarded-Prefix=/aidio"
+      - "traefik.http.services.aidio-backend.loadbalancer.server.port=8090"
+      - "traefik.docker.network=librechat_edge"
+    networks:
+      - default
+      - edge
+
+  mongodb:
+    container_name: aidio-chat-mongodb
+    volumes:
+      - mongodb-data-aidio:/data/db
+
+  meilisearch:
+    container_name: aidio-chat-meilisearch
+    volumes:
+      - meili-data-aidio:/meili_data
+
+  vectordb:
+    container_name: aidio-vectordb
+    volumes:
+      - pgdata2-aidio:/var/lib/postgresql/data
+
+  rag_api:
+    container_name: aidio-rag-api
+    env_file:
+      - .env.aidio
+
+  graphrag_api:
+    image: librechat-semaa-api:local
+    container_name: aidio-graphrag-api
+    command: node /app/api/graphrag/server.js
+    restart: always
+    env_file:
+      - .env.aidio
+    environment:
+      - GRAPH_RAG_PORT=${GRAPH_RAG_PORT:-8001}
+      - GRAPH_RAG_STORE_DIR=/app/api/data/graphrag
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ./api/graphrag:/app/api/graphrag:ro
+      - ./graphrag_data_aidio:/app/api/data/graphrag
+
+  relay:
+    build:
+      context: /home/arya/SemaaVP/relay
+      dockerfile: Dockerfile
+    container_name: aidio-relay
+    restart: always
+    env_file:
+      - .env.aidio
+    environment:
+      - RELAY_PORT=8080
+      - LIBRECHAT_URL=http://api:3080
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.relay-aidio-http.rule=Host(`relay.aidio.now`)"
+      - "traefik.http.routers.relay-aidio-http.entrypoints=web"
+      - "traefik.http.routers.relay-aidio-http.middlewares=relay-aidio-https-redirect"
+      - "traefik.http.routers.relay-aidio-http.service=relay-aidio"
+      - "traefik.http.routers.relay-aidio.rule=Host(`relay.aidio.now`)"
+      - "traefik.http.routers.relay-aidio.entrypoints=websecure"
+      - "traefik.http.routers.relay-aidio.tls.certresolver=${TRAEFIK_CERTRESOLVER:-leresolver}"
+      - "traefik.http.routers.relay-aidio.service=relay-aidio"
+      - "traefik.http.middlewares.relay-aidio-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.services.relay-aidio.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.relay-aidio-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.relay-aidio.middlewares=relay-aidio-headers"
+      - "traefik.docker.network=librechat_edge"
+    networks:
+      - default
+      - edge
+
+volumes:
+  pgdata2-aidio:
+  mongodb-data-aidio:
+  meili-data-aidio:
+
+networks:
+  edge:
+    external: true
+    name: librechat_edge

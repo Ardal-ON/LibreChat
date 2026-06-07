@@ -43,6 +43,29 @@ const { getLogStores } = require('~/cache');
 const MAX_CACHE_SIZE = 1000;
 const lastReconnectAttempts = new Map();
 const RECONNECT_THROTTLE_MS = 10_000;
+const GRAPHRAG_SERVER = 'graphrag-local';
+const LC_USER_ID_KEY = '__lc_user_id';
+
+function withGraphRagUserContext(toolArguments, serverName, userId) {
+  if (normalizeServerName(serverName) !== GRAPHRAG_SERVER || !userId) {
+    return toolArguments;
+  }
+
+  let parsedArgs = toolArguments;
+  if (typeof toolArguments === 'string') {
+    try {
+      parsedArgs = JSON.parse(toolArguments);
+    } catch {
+      parsedArgs = { input: toolArguments };
+    }
+  }
+
+  if (typeof parsedArgs !== 'object' || parsedArgs === null || Array.isArray(parsedArgs)) {
+    parsedArgs = {};
+  }
+
+  return { ...parsedArgs, [LC_USER_ID_KEY]: userId };
+}
 
 const missingToolCache = new Map();
 const MISSING_TOOL_TTL_MS = 10_000;
@@ -718,12 +741,14 @@ function createToolInstance({
       const customUserVars =
         config?.configurable?.userMCPAuthMap?.[`${Constants.mcp_prefix}${serverName}`];
 
+      const resolvedToolArguments = withGraphRagUserContext(toolArguments, serverName, userId);
+
       const result = await mcpManager.callTool({
         serverName,
         serverConfig: capturedServerConfig,
         toolName,
         provider,
-        toolArguments,
+        toolArguments: resolvedToolArguments,
         options: {
           signal: derivedSignal,
         },

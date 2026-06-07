@@ -5,8 +5,9 @@ const path = require('path');
 const { execSync, execFileSync } = require('child_process');
 
 const BASE_URL = process.env.LIBRECHAT_BASE_URL || 'http://localhost:3080';
-const SERVER_NAME = process.env.GRAPHRAG_SERVER_NAME || 'graphrag';
+const SERVER_NAME = process.env.GRAPHRAG_SERVER_NAME || 'graphrag-local';
 const API_CONTAINER = process.env.LIBRECHAT_API_CONTAINER || 'LibreChat-API';
+const TEST_USER_ID = process.env.GRAPHRAG_TEST_USER_ID || 'graphrag-test-user';
 const TOP_K = Number(process.env.GRAPHRAG_TEST_TOP_K || '8');
 const MAX_NODES = Number(process.env.GRAPHRAG_TEST_MAX_NODES || '80');
 
@@ -51,11 +52,31 @@ function parseToolResult(payload) {
   }
 }
 
+function getAuthHeaders() {
+  if (process.env.LIBRECHAT_AUTH_TOKEN) {
+    return { Authorization: `Bearer ${process.env.LIBRECHAT_AUTH_TOKEN}` };
+  }
+
+  if (process.env.JWT_SECRET) {
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({ id: TEST_USER_ID }, process.env.JWT_SECRET, {
+      expiresIn: '5m',
+      algorithm: 'HS256',
+    });
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  return {};
+}
+
 async function callTool(toolName, args = {}) {
   const url = `${BASE_URL}/api/mcp/${SERVER_NAME}/tools/${toolName}/call`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
     body: JSON.stringify(args),
   });
 
@@ -85,13 +106,17 @@ function seedUploadsFromWorkspaceDocs() {
   }
 
   try {
-    execFileSync('docker', ['exec', API_CONTAINER, 'sh', '-lc', 'mkdir -p /app/uploads/graphrag-seed'], {
+    const userUploadDir = `/app/uploads/${TEST_USER_ID}`;
+    execFileSync('docker', ['exec', API_CONTAINER, 'sh', '-lc', `mkdir -p ${userUploadDir}`], {
       stdio: 'ignore',
     });
-    execFileSync('docker', ['cp', `${docsDir}/.`, `${API_CONTAINER}:/app/uploads/graphrag-seed/`], {
+    execFileSync('docker', ['cp', `${docsDir}/.`, `${API_CONTAINER}:${userUploadDir}/`], {
       stdio: 'ignore',
     });
-    return { seeded: true, reason: 'Copied docs/graphrag-test into container uploads' };
+    return {
+      seeded: true,
+      reason: `Copied docs/graphrag-test into container uploads for user ${TEST_USER_ID}`,
+    };
   } catch (error) {
     return { seeded: false, reason: `Failed docker copy into ${API_CONTAINER}: ${error.message}` };
   }
@@ -178,6 +203,7 @@ async function main() {
   console.log('Output:', outputDir);
   console.log('Base URL:', BASE_URL);
   console.log('Server:', SERVER_NAME);
+  console.log('Test user:', TEST_USER_ID);
   console.log('');
 
   const summary = [];
