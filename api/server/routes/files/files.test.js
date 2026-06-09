@@ -669,6 +669,38 @@ describe('File Routes - Delete with Agent Access', () => {
   });
 
   describe('GET /files/download/:userId/:file_id', () => {
+    it('downloads stored markdown text without requiring a storage strategy', async () => {
+      const userFileId = uuidv4();
+      getStrategyFunctions.mockReturnValue({});
+
+      await createFile({
+        user: otherUserId,
+        file_id: userFileId,
+        filename: 'statement.md',
+        filepath: FileSources.custom_ocr,
+        bytes: 42,
+        type: 'text/markdown',
+        source: FileSources.text,
+        text: '# OCR Result\n\nReady text',
+      });
+
+      const response = await request(app).get(`/files/download/${otherUserId}/${userFileId}`);
+
+      expect(response.status).toBe(200);
+      expect(response.text).toBe('# OCR Result\n\nReady text');
+      expect(response.headers['content-disposition']).toContain('statement.md');
+      expect(response.headers['content-type']).toContain('text/markdown');
+      const metadata = JSON.parse(decodeURIComponent(response.headers['x-file-metadata']));
+      expect(metadata).toMatchObject({
+        file_id: userFileId,
+        filename: 'statement.md',
+        source: FileSources.text,
+        type: 'text/markdown',
+      });
+      expect(metadata).not.toHaveProperty('text');
+      expect(getStrategyFunctions).not.toHaveBeenCalled();
+    });
+
     it('streams proxied downloads by default when a direct URL is available', async () => {
       const userFileId = uuidv4();
       const getDownloadURL = jest.fn().mockResolvedValue('https://cdn.example.com/file.pdf?signed');

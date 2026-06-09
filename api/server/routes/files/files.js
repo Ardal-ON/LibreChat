@@ -495,6 +495,22 @@ const getDownloadFileMetadata = (file) => {
   }, {});
 };
 
+const canDownloadInlineText = (file) =>
+  file?.text != null &&
+  (file.source === FileSources.text ||
+    file.source === FileSources.custom_ocr ||
+    file.type === 'text/markdown');
+
+const sendInlineTextDownload = (res, file) => {
+  res.setHeader('Content-Disposition', getContentDisposition(file.filename));
+  res.setHeader('Content-Type', file.type || 'text/plain; charset=utf-8');
+  res.setHeader(
+    'X-File-Metadata',
+    encodeURIComponent(JSON.stringify(getDownloadFileMetadata(file))),
+  );
+  return res.status(200).send(Buffer.from(file.text || '', 'utf8'));
+};
+
 router.get('/download-url/:userId/:file_id', fileAccess, async (req, res) => {
   try {
     const { userId, file_id } = req.params;
@@ -539,7 +555,20 @@ router.get('/download/:userId/:file_id', fileAccess, async (req, res) => {
     logger.debug(`File download requested by user ${userId}: ${file_id}`);
 
     // Access already validated by fileAccess middleware
-    const file = req.fileAccess.file;
+    let file = req.fileAccess.file;
+
+    if (
+      file?.text == null &&
+      (file.source === FileSources.text ||
+        file.source === FileSources.custom_ocr ||
+        file.type === 'text/markdown')
+    ) {
+      file = (await db.findFileById(file_id)) ?? file;
+    }
+
+    if (canDownloadInlineText(file)) {
+      return sendInlineTextDownload(res, file);
+    }
 
     if (checkOpenAIStorage(file.source) && !file.model) {
       logger.warn(`File download requested by user ${userId} has no associated model: ${file_id}`);

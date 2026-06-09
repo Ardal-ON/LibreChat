@@ -135,6 +135,12 @@ function axiosConfig(apiKey: string): AxiosRequestConfig {
   return config;
 }
 
+function markdownFilename(filename: string): string {
+  const parsed = path.parse(filename);
+  const stem = parsed.name || filename || 'document';
+  return `${stem}.md`;
+}
+
 export async function uploadCustomOCR(context: CustomOCRContext): Promise<CustomOCRPendingResult> {
   try {
     const { apiKey, baseURL } = await loadCustomOCRAuthConfig(context);
@@ -155,7 +161,7 @@ export async function uploadCustomOCR(context: CustomOCRContext): Promise<Custom
     }
 
     return {
-      filename: `${filename}.md`,
+      filename: markdownFilename(filename),
       bytes: 0,
       filepath: FileSources.custom_ocr,
       text: '',

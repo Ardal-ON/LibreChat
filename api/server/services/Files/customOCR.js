@@ -1,3 +1,4 @@
+const path = require('path');
 const axios = require('axios');
 const { logger } = require('@librechat/data-schemas');
 const { FileSources } = require('librechat-data-provider');
@@ -11,6 +12,16 @@ const isCustomOCRPendingFile = (file) =>
   file.metadata.ocr.call_id.length > 0;
 
 const shortError = (error) => String(error?.message || error || 'custom-ocr-failed').slice(0, 200);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function markdownFilename(filename) {
+  const name = filename || 'document';
+  if (name.endsWith('.md') || name.endsWith('.markdown')) {
+    return name;
+  }
+  const parsed = path.parse(name);
+  return `${parsed.name || name}.md`;
+}
 
 async function ingestGraphRAG({ req, file, text, filename }) {
   if (!process.env.GRAPH_RAG_API_URL || !text) {
@@ -91,16 +102,13 @@ async function finalizeCustomOCRFile({ req, file, db }) {
     return failed ?? file;
   }
 
-  const markdownFilename =
-    file.filename?.endsWith('.md') || file.filename?.endsWith('.markdown')
-      ? file.filename
-      : `${file.filename || file.metadata?.ocr?.originalFilename || 'document'}.md`;
+  const markdownName = markdownFilename(file.filename || file.metadata?.ocr?.originalFilename);
 
   const graphRAG = await ingestGraphRAG({
     req,
     file,
     text: result.markdown,
-    filename: markdownFilename,
+    filename: markdownName,
   });
 
   const ready = await db.updateFile(
@@ -112,7 +120,7 @@ async function finalizeCustomOCRFile({ req, file, db }) {
       textFormat: 'text',
       bytes: result.bytes,
       type: 'text/markdown',
-      filename: markdownFilename,
+      filename: markdownName,
       filepath: FileSources.custom_ocr,
       source: FileSources.text,
       metadata: {
@@ -133,7 +141,48 @@ async function finalizeCustomOCRFile({ req, file, db }) {
   return ready ?? file;
 }
 
+async function waitForCustomOCRFile({
+  req,
+  file,
+  db,
+  signal,
+  timeoutMs = 10 * 60 * 1000,
+  intervalMs = 3000,
+}) {
+  let current = file;
+  if (!isCustomOCRPendingFile(current)) {
+    return current;
+  }
+
+  const startedAt = Date.now();
+  logger.info(`[custom_ocr] Waiting for OCR completion for file ${file.file_id}`);
+
+  while (isCustomOCRPendingFile(current)) {
+    if (signal?.aborted) {
+      throw new Error('Custom OCR wait aborted');
+    }
+
+    current = await finalizeCustomOCRFile({ req, file: current, db });
+    if (!isCustomOCRPendingFile(current)) {
+      return current;
+    }
+
+    if (Date.now() - startedAt >= timeoutMs) {
+      throw new Error(`Timed out waiting for custom OCR file ${file.file_id}`);
+    }
+
+    await sleep(intervalMs);
+    const refreshed = await db.findFileById(file.file_id);
+    if (refreshed) {
+      current = refreshed;
+    }
+  }
+
+  return current;
+}
+
 module.exports = {
   finalizeCustomOCRFile,
   isCustomOCRPendingFile,
+  waitForCustomOCRFile,
 };

@@ -9,8 +9,13 @@ jest.mock('~/hooks', () => ({
   useLocalize: jest.fn(),
 }));
 
+jest.mock('~/hooks/AuthContext', () => ({
+  useAuthContext: jest.fn(() => ({ user: { id: 'user-123' } })),
+}));
+
 jest.mock('~/data-provider', () => ({
   useDeleteFilesMutation: jest.fn(),
+  useFilePreview: jest.fn(() => ({ data: undefined })),
 }));
 
 jest.mock('~/hooks/Files', () => ({
@@ -37,11 +42,12 @@ jest.mock('../Image', () => {
 });
 
 jest.mock('../FileContainer', () => {
-  return function MockFileContainer({ file }: any) {
+  return function MockFileContainer({ file, subtitle, onClick }: any) {
     return (
-      <div data-testid="mock-file-container">
+      <button data-testid="mock-file-container" onClick={onClick}>
         <span data-testid="file-name">{file.filename}</span>
-      </div>
+        <span data-testid="file-subtitle">{subtitle}</span>
+      </button>
     );
   };
 });
@@ -253,6 +259,28 @@ describe('FileRow', () => {
 
       expect(screen.getByTestId('mock-file-container')).toBeInTheDocument();
       expect(screen.queryByTestId('mock-image')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Pending OCR State', () => {
+    it('does not mark pending OCR files as upload loading', () => {
+      const file = createMockFile({
+        type: 'application/pdf',
+        filename: 'document.md',
+        progress: 1,
+        status: 'pending',
+        metadata: { ocr: { provider: 'custom_ocr', call_id: 'call-123' } },
+      });
+
+      const filesMap = new Map<string, ExtendedFile>();
+      filesMap.set(file.file_id, file);
+
+      renderFileRow(filesMap);
+
+      expect(mockSetFilesLoading).toHaveBeenCalledWith(expect.any(Function));
+      const updater = mockSetFilesLoading.mock.calls[0][0];
+      expect(updater(true)).toBe(false);
+      expect(screen.getByText('Waiting for OCR...')).toBeInTheDocument();
     });
   });
 

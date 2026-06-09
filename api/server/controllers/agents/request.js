@@ -11,8 +11,13 @@ const {
 } = require('@librechat/api');
 const { disposeClient, clientRegistry, requestDataMap } = require('~/server/cleanup');
 const { handleAbortError } = require('~/server/middleware');
+const {
+  isCustomOCRPendingFile,
+  waitForCustomOCRFile,
+} = require('~/server/services/Files/customOCR');
 const { logViolation } = require('~/cache');
-const { saveMessage, getConvo } = require('~/models');
+const db = require('~/models');
+const { saveMessage, getConvo } = db;
 
 function createCloseHandler(abortController) {
   return function (manual) {
@@ -71,6 +76,37 @@ async function attachConversationCreatedAt(req, { userId, conversationId, isNewC
   req.conversationCreatedAt = resolved.createdAt;
   if (!isNewConvo && resolved.conversation !== undefined) {
     req.resolvedConversation = resolved.conversation ?? null;
+  }
+}
+
+async function waitForPendingCustomOCRAttachments({ req, client, signal }) {
+  const attachments = await Promise.resolve(client?.options?.attachments);
+  if (!Array.isArray(attachments) || attachments.length === 0) {
+    return;
+  }
+
+  const hasPendingOCR = attachments.some(isCustomOCRPendingFile);
+  if (!hasPendingOCR) {
+    return;
+  }
+
+  const resolvedAttachments = await Promise.all(
+    attachments.map((file) =>
+      isCustomOCRPendingFile(file)
+        ? waitForCustomOCRFile({ req, file, db, signal })
+        : Promise.resolve(file),
+    ),
+  );
+  client.options.attachments = resolvedAttachments;
+
+  if (Array.isArray(req.body.files)) {
+    const resolvedById = new Map(
+      resolvedAttachments.filter((file) => file?.file_id).map((file) => [file.file_id, file]),
+    );
+    req.body.files = req.body.files.map((file) => {
+      const resolved = resolvedById.get(file.file_id);
+      return resolved ? { ...file, ...resolved } : file;
+    });
   }
 }
 
@@ -216,6 +252,12 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
     if (client?.sender) {
       GenerationJobManager.updateMetadata(streamId, { sender: client.sender });
     }
+
+    await waitForPendingCustomOCRAttachments({
+      req,
+      client,
+      signal: job.abortController.signal,
+    });
 
     // Store reference to client's contentParts - graph will be set when run is created
     if (client?.contentParts) {
@@ -619,6 +661,12 @@ const _LegacyAgentController = async (req, res, next, initializeClient, addTitle
       iconURL: endpointOption.iconURL,
       model: endpointOption.modelOptions?.model || endpointOption.model_parameters?.model,
       sender: client?.sender,
+    });
+
+    await waitForPendingCustomOCRAttachments({
+      req,
+      client,
+      signal: job.abortController.signal,
     });
 
     // Store content parts reference for abort

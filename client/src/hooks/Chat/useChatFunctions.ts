@@ -268,6 +268,12 @@ export default function useChatFunctions({
       (isRegenerate || (overrideFiles != null && overrideFiles.length)) &&
       submissionFiles &&
       submissionFiles.length > 0;
+    const hasPendingOCRFiles =
+      !reuseFiles &&
+      files != null &&
+      Array.from(files.values()).some(
+        (file) => file.status === 'pending' && file.metadata?.ocr?.provider === 'custom_ocr',
+      );
 
     if (setFiles && reuseFiles === true) {
       currentMsg.files = [...submissionFiles];
@@ -361,6 +367,21 @@ export default function useChatFunctions({
       }
       setIsSubmitting(true);
       setShowStopButton(true);
+    }
+
+    if (hasPendingOCRFiles) {
+      const waitingText = 'Waiting for OCR to finish...';
+      initialResponse.text = waitingText;
+      if (!initialResponse.content || initialResponse.content.length === 0) {
+        initialResponse.content = [
+          {
+            type: ContentTypes.TEXT,
+            [ContentTypes.TEXT]: {
+              value: waitingText,
+            },
+          },
+        ];
+      }
     }
 
     if (isContinued) {

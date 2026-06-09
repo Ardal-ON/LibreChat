@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from 'react';
 import { useToastContext } from '@librechat/client';
-import { EToolResources } from 'librechat-data-provider';
+import { dataService, EToolResources } from 'librechat-data-provider';
 import type { ExtendedFile } from '~/common';
 import { useDeleteFilesMutation } from '~/data-provider';
 import { useFilePreview } from '~/data-provider';
-import { logger, getCachedPreview } from '~/utils';
+import { logger, getCachedPreview, triggerDownload } from '~/utils';
 import { useFileDeletion } from '~/hooks/Files';
+import { useAuthContext } from '~/hooks/AuthContext';
 import FileContainer from './FileContainer';
 import { useLocalize } from '~/hooks';
 import Image from './Image';
@@ -88,6 +89,7 @@ export default function FileRow({
   Wrapper?: React.FC<{ children: React.ReactNode }>;
 }) {
   const localize = useLocalize();
+  const { user } = useAuthContext();
   const { showToast } = useToastContext();
   const files = useMemo(
     () =>
@@ -117,7 +119,7 @@ export default function FileRow({
   useEffect(() => {
     if (!setFilesLoading) return;
     const isLoading =
-      files.length > 0 && files.some((file) => file.progress < 1 || file.status === 'pending');
+      files.length > 0 && files.some((file) => file.progress < 1 && file.status !== 'pending');
     setFilesLoading((current) => (current === isLoading ? current : isLoading));
   }, [files, setFilesLoading]);
 
@@ -170,6 +172,39 @@ export default function FileRow({
               deleteFile({ file, setFiles });
             };
             const isImage = file.type?.startsWith('image') ?? false;
+            const waitingForOCR = 'Waiting for OCR...';
+            const ocrFailed = file.previewError || 'OCR failed';
+            let subtitle: React.ReactNode;
+            if (file.status === 'pending') {
+              subtitle = (
+                <div className="truncate text-text-secondary" title={waitingForOCR}>
+                  {waitingForOCR}
+                </div>
+              );
+            } else if (file.status === 'failed') {
+              subtitle = (
+                <div className="truncate text-red-500" title={ocrFailed}>
+                  {ocrFailed}
+                </div>
+              );
+            }
+            const handleDownload = async (event: React.MouseEvent<HTMLButtonElement>) => {
+              event.preventDefault();
+              if (file.status === 'pending' || !user?.id || !file.file_id) {
+                return;
+              }
+              try {
+                const response = await dataService.getFileDownload(user.id, file.file_id);
+                const downloadURL = window.URL.createObjectURL(response.data);
+                triggerDownload(downloadURL, file.filename || 'download');
+              } catch (error) {
+                logger.error('Error downloading uploaded file:', error);
+                showToast({
+                  status: 'error',
+                  message: 'Error downloading file',
+                });
+              }
+            };
 
             return (
               <div
@@ -189,7 +224,12 @@ export default function FileRow({
                     source={file.source}
                   />
                 ) : (
-                  <FileContainer file={file} onDelete={handleDelete} />
+                  <FileContainer
+                    file={file}
+                    onDelete={handleDelete}
+                    onClick={handleDownload}
+                    subtitle={subtitle}
+                  />
                 )}
               </div>
             );
