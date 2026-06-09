@@ -12,6 +12,7 @@ export enum FileSources {
   vectordb = 'vectordb',
   execute_code = 'execute_code',
   mistral_ocr = 'mistral_ocr',
+  custom_ocr = 'custom_ocr',
   azure_mistral_ocr = 'azure_mistral_ocr',
   vertexai_mistral_ocr = 'vertexai_mistral_ocr',
   text = 'text',
@@ -153,6 +154,24 @@ export type TFile = {
   previewError?: string;
   metadata?: {
     fileIdentifier?: string;
+    ocr?: {
+      provider?: string;
+      call_id?: string;
+      job_id?: string;
+      originalFilename?: string;
+      originalMime?: string;
+      entity_id?: string;
+      submittedAt?: string | Date;
+      completedAt?: string | Date;
+      failedAt?: string | Date;
+      error?: string;
+      graphrag?: {
+        status?: 'pending' | 'ready' | 'failed' | 'skipped';
+        chunk_count?: number;
+        ingestedAt?: string | Date;
+        error?: string;
+      };
+    };
     /**
      * Structured form of `fileIdentifier`. Persisted alongside the
      * legacy string during the dual-write transition; readers should

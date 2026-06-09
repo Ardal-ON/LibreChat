@@ -762,8 +762,18 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
      * @param {string} params.type
      * @return {Promise<void>}
      */
-    const createTextFile = async ({ text, bytes, filepath, type = 'text/plain' }) => {
-      const textBytes = Buffer.byteLength(text, 'utf8');
+    const createTextFile = async ({
+      text,
+      bytes,
+      filepath,
+      type = 'text/plain',
+      filename,
+      status,
+      textFormat,
+      metadata,
+      previewError,
+    }) => {
+      const textBytes = Buffer.byteLength(text ?? '', 'utf8');
       if (textBytes > 15 * megabyte) {
         throw new Error(
           `Extracted text from "${file.originalname}" exceeds the 15MB storage limit (${Math.round(textBytes / megabyte)}MB). Try a shorter document.`,
@@ -784,7 +794,11 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
           type,
           filepath: filepath ?? file.path,
           source: FileSources.text,
-          filename: file.originalname,
+          filename: filename ?? file.originalname,
+          status,
+          textFormat,
+          metadata,
+          previewError,
           model: messageAttachment ? undefined : req.body.model,
           context: messageAttachment ? FileContext.message_attachment : FileContext.agents,
           tenantId: req.user.tenantId,
@@ -849,6 +863,28 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
       const ocrResult = await resolveDocumentText();
       if (ocrResult) {
         const { text, bytes, filepath: ocrFileURL } = ocrResult;
+        if (ocrResult.pending && ocrResult.provider === FileSources.custom_ocr) {
+          return await createTextFile({
+            text: undefined,
+            bytes,
+            filepath: ocrFileURL,
+            type: 'text/markdown',
+            filename: ocrResult.filename,
+            status: 'pending',
+            textFormat: 'text',
+            metadata: {
+              ocr: {
+                provider: FileSources.custom_ocr,
+                call_id: ocrResult.call_id,
+                originalFilename: ocrResult.originalFilename,
+                originalMime: ocrResult.originalMime,
+                entity_id,
+                submittedAt: new Date(),
+                graphrag: { status: 'pending' },
+              },
+            },
+          });
+        }
         return await createTextFile({ text, bytes, filepath: ocrFileURL });
       }
       throw new Error(

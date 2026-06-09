@@ -124,6 +124,7 @@ const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: Fil
           queryClient.refetchQueries([QueryKeys.agent, agent_id]);
           return;
         }
+        const isPendingOCR = data.status === 'pending';
         updateFileById(
           data.temp_file_id,
           {
@@ -139,10 +140,11 @@ const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: Fil
             cachePreview(data.file_id, cachedBlob);
             removePreviewEntry(data.temp_file_id);
           }
+          const progress = isPendingOCR ? 0.95 : 1;
           updateFileById(
             data.temp_file_id,
             {
-              progress: 1,
+              progress,
               file_id: data.file_id,
               temp_file_id: data.temp_file_id,
               filepath: data.filepath,
@@ -152,6 +154,10 @@ const useFileHandlingCore = (params: UseFileHandling | undefined, fileState: Fil
               filename: data.filename,
               source: data.source,
               embedded: data.embedded,
+              status: data.status,
+              previewError: data.previewError,
+              textFormat: data.textFormat,
+              metadata: data.metadata,
             },
             assistant_id ? true : false,
           );

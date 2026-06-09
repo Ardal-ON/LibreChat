@@ -570,6 +570,9 @@ export interface ExtendedFile {
   preview?: string;
   progress: number;
   source?: FileSources;
+  status?: t.TFile['status'];
+  previewError?: t.TFile['previewError'];
+  textFormat?: t.TFile['textFormat'];
   attached?: boolean;
   embedded?: boolean;
   tool_resource?: string;

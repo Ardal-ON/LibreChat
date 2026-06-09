@@ -63,6 +63,24 @@ export interface IMongoFile extends Omit<Document, 'model'> {
   width?: number;
   height?: number;
   metadata?: {
+    ocr?: {
+      provider?: string;
+      call_id?: string;
+      job_id?: string;
+      originalFilename?: string;
+      originalMime?: string;
+      entity_id?: string;
+      submittedAt?: Date | string;
+      completedAt?: Date | string;
+      failedAt?: Date | string;
+      error?: string;
+      graphrag?: {
+        status?: 'pending' | 'ready' | 'failed' | 'skipped';
+        chunk_count?: number;
+        ingestedAt?: Date | string;
+        error?: string;
+      };
+    };
     /**
      * Code-environment cache pointer for files re-uploadable to
      * codeapi (chat attachments, agent tool resources, code-output

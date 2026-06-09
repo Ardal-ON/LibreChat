@@ -435,6 +435,10 @@ export const getFilePreview = (fileId: string): Promise<f.TFilePreview> => {
   return request.get(endpoints.filePreview(fileId));
 };
 
+export const getFileOCRStatus = (fileId: string): Promise<f.TFilePreview> => {
+  return request.get(endpoints.fileOCRStatus(fileId));
+};
+
 export const getAgentFiles = (agentId: string): Promise<f.TFile[]> => {
   return request.get(endpoints.agentFiles(agentId));
 };

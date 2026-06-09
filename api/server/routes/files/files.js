@@ -30,6 +30,7 @@ const { getOpenAIClient } = require('~/server/controllers/assistants/helpers');
 const { hasCapability } = require('~/server/middleware/roles/capabilities');
 const { checkPermission } = require('~/server/services/PermissionService');
 const { hasAccessToFilesViaAgent } = require('~/server/services/Files');
+const { finalizeCustomOCRFile } = require('~/server/services/Files/customOCR');
 const { cleanFileName, getContentDisposition } = require('~/server/utils/files');
 const { getLogStores } = require('~/cache');
 const { Readable } = require('stream');
@@ -369,52 +370,66 @@ const PREVIEW_LAZY_SWEEP_CUTOFF_MS = 2 * 60 * 1000;
  *
  * @route GET /files/:file_id/preview
  */
+const getFilePreviewPayload = async (req) => {
+  const { file_id } = req.params;
+  let file = req.fileAccess.file;
+
+  file = await finalizeCustomOCRFile({ req, file, db });
+
+  /* Lazy sweep: if stuck `pending` past the cutoff, mark `failed`
+   * conditional on the observed `updatedAt` (concurrent legitimate
+   * updates win). */
+  if (file.status === 'pending' && file.updatedAt instanceof Date) {
+    const ageMs = Date.now() - file.updatedAt.getTime();
+    if (ageMs > PREVIEW_LAZY_SWEEP_CUTOFF_MS) {
+      const swept = await db.updateFile(
+        { file_id, status: 'failed', previewError: 'orphaned' },
+        { status: 'pending', updatedAt: file.updatedAt },
+      );
+      if (swept) {
+        file = swept;
+        logger.info(
+          `[/files/:file_id/preview] Lazy-swept orphaned pending record ${file_id} (age ${Math.round(ageMs / 1000)}s)`,
+        );
+      }
+    }
+  }
+
+  /* Default to 'ready' for back-compat: legacy records pre-date the
+   * field, and non-office files never get a status set on persist. */
+  const status = file.status ?? 'ready';
+  const payload = { file_id, status };
+  if (status === 'ready') {
+    const withText = await db.findFileById(file_id);
+    if (withText?.text != null) {
+      payload.text = withText.text;
+      payload.textFormat = withText.textFormat ?? null;
+    }
+  } else if (status === 'failed' && file.previewError) {
+    payload.previewError = file.previewError;
+  }
+  return payload;
+};
+
 router.get('/:file_id/preview', fileAccess, async (req, res) => {
   try {
-    const { file_id } = req.params;
-    /* `fileAccess` already fetched the record (sans `text`, the default
-     * projection drops it). Reuse for the lifecycle check; only re-fetch
-     * with `text` on a terminal ready response — the typical lifecycle
-     * is N pending polls + 1 ready, so this avoids ~N redundant text
-     * reads per file. */
-    let file = req.fileAccess.file;
-    /* Lazy sweep: if stuck `pending` past the cutoff, mark `failed`
-     * conditional on the observed `updatedAt` (concurrent legitimate
-     * updates win). */
-    if (file.status === 'pending' && file.updatedAt instanceof Date) {
-      const ageMs = Date.now() - file.updatedAt.getTime();
-      if (ageMs > PREVIEW_LAZY_SWEEP_CUTOFF_MS) {
-        const swept = await db.updateFile(
-          { file_id, status: 'failed', previewError: 'orphaned' },
-          { status: 'pending', updatedAt: file.updatedAt },
-        );
-        if (swept) {
-          file = swept;
-          logger.info(
-            `[/files/:file_id/preview] Lazy-swept orphaned pending record ${file_id} (age ${Math.round(ageMs / 1000)}s)`,
-          );
-        }
-      }
-    }
-    /* Default to 'ready' for back-compat: legacy records pre-date the
-     * field, and non-office files never get a status set on persist. */
-    const status = file.status ?? 'ready';
-    const payload = { file_id, status };
-    if (status === 'ready') {
-      const withText = await db.findFileById(file_id);
-      if (withText?.text != null) {
-        payload.text = withText.text;
-        payload.textFormat = withText.textFormat ?? null;
-      }
-    } else if (status === 'failed' && file.previewError) {
-      payload.previewError = file.previewError;
-    }
-    return res.status(200).json(payload);
+    return res.status(200).json(await getFilePreviewPayload(req));
   } catch (error) {
     logger.error('[/files/:file_id/preview] Error fetching preview status:', error);
     return res
       .status(500)
       .json({ error: 'Internal Server Error', message: 'Failed to fetch preview status' });
+  }
+});
+
+router.get('/:file_id/ocr-status', fileAccess, async (req, res) => {
+  try {
+    return res.status(200).json(await getFilePreviewPayload(req));
+  } catch (error) {
+    logger.error('[/files/:file_id/ocr-status] Error fetching OCR status:', error);
+    return res
+      .status(500)
+      .json({ error: 'Internal Server Error', message: 'Failed to fetch OCR status' });
   }
 });
 

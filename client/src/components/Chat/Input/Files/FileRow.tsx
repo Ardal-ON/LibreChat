@@ -3,11 +3,57 @@ import { useToastContext } from '@librechat/client';
 import { EToolResources } from 'librechat-data-provider';
 import type { ExtendedFile } from '~/common';
 import { useDeleteFilesMutation } from '~/data-provider';
+import { useFilePreview } from '~/data-provider';
 import { logger, getCachedPreview } from '~/utils';
 import { useFileDeletion } from '~/hooks/Files';
 import FileContainer from './FileContainer';
 import { useLocalize } from '~/hooks';
 import Image from './Image';
+
+function FileLifecycleSync({
+  file,
+  setFiles,
+}: {
+  file: ExtendedFile;
+  setFiles: React.Dispatch<React.SetStateAction<Map<string, ExtendedFile>>>;
+}) {
+  const enabled = file.status === 'pending' && !!file.file_id;
+  const preview = useFilePreview(file.file_id, { enabled });
+
+  useEffect(() => {
+    const data = preview.data;
+    if (!data || data.status === 'pending') {
+      return;
+    }
+
+    setFiles((currentFiles) => {
+      const updatedFiles = new Map(currentFiles);
+      const directFile = updatedFiles.get(file.file_id);
+      const matchedFile = directFile
+        ? ([file.file_id, directFile] as const)
+        : Array.from(updatedFiles.entries()).find(
+            ([, currentFile]) => currentFile.file_id === file.file_id,
+          );
+      if (!matchedFile) {
+        return currentFiles;
+      }
+      const [fileKey, current] = matchedFile;
+      if (!current) {
+        return currentFiles;
+      }
+      updatedFiles.set(fileKey, {
+        ...current,
+        progress: 1,
+        status: data.status,
+        previewError: data.previewError,
+        type: data.status === 'ready' ? 'text/markdown' : current.type,
+      });
+      return updatedFiles;
+    });
+  }, [file.file_id, preview.data, setFiles]);
+
+  return null;
+}
 
 export default function FileRow({
   files: _files,
@@ -64,12 +110,12 @@ export default function FileRow({
       return;
     }
 
-    if (files.some((file) => file.progress < 1)) {
+    if (files.some((file) => file.progress < 1 || file.status === 'pending')) {
       setFilesLoading(true);
       return;
     }
 
-    if (files.every((file) => file.progress === 1)) {
+    if (files.every((file) => file.progress === 1 && file.status !== 'pending')) {
       setFilesLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,6 +180,7 @@ export default function FileRow({
                   flexShrink: 0,
                 }}
               >
+                <FileLifecycleSync file={file} setFiles={setFiles} />
                 {isImage ? (
                   <Image
                     url={getCachedPreview(file.file_id) ?? file.preview ?? file.filepath}

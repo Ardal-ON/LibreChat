@@ -118,6 +118,33 @@ const file: Schema<IMongoFile> = new Schema(
     width: Number,
     height: Number,
     metadata: {
+      ocr: {
+        type: new Schema(
+          {
+            provider: String,
+            call_id: String,
+            job_id: String,
+            originalFilename: String,
+            originalMime: String,
+            entity_id: String,
+            submittedAt: Date,
+            completedAt: Date,
+            failedAt: Date,
+            error: { type: String, maxlength: 500 },
+            graphrag: {
+              status: {
+                type: String,
+                enum: ['pending', 'ready', 'failed', 'skipped'],
+              },
+              chunk_count: Number,
+              ingestedAt: Date,
+              error: { type: String, maxlength: 500 },
+            },
+          },
+          { _id: false },
+        ),
+        default: undefined,
+      },
       codeEnvRef: {
         type: new Schema(
           {
