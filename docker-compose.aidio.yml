@@ -143,7 +143,6 @@ services:
     environment:
       - GRAPH_RAG_PORT=${GRAPH_RAG_PORT:-8001}
       - GRAPH_RAG_STORE_DIR=/app/api/data/graphrag
-      - JWT_SECRET=${JWT_SECRET}
     volumes:
       - ./api/graphrag:/app/api/graphrag:ro
       - ./graphrag_data_aidio:/app/api/data/graphrag
