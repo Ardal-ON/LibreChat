@@ -204,7 +204,7 @@ async function createActionTool({
           ? { ...toolInput }
           : {};
       const domain = String(metadata.domain ?? '');
-      if (domain.includes('aidio-backend')) {
+      if (domain.includes('aidio-backend') || domain.includes('aidio-rag-backend')) {
         const conversationId =
           streamId ?? config?.metadata?.thread_id ?? config?.configurable?.thread_id;
         if (conversationId && params.conversation_id == null) {

@@ -82,6 +82,37 @@ services:
       - default
       - edge
 
+  aidio-rag-backend:
+    container_name: aidio-rag-requirement-backend
+    build:
+      context: /home/arya/aidio-rag
+      dockerfile: Dockerfile.aidio
+    restart: unless-stopped
+    environment:
+      - AIDIO_PUBLIC_BASE_URL=https://aidio.now/aidio-rag
+    expose:
+      - "8090"
+    ports:
+      - "8091:8090"
+    volumes:
+      - /home/arya/aidio-rag/outputs:/app/outputs
+      - /home/arya/aidio-rag/Knowledge/RAG:/app/Knowledge/RAG
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.aidio-rag-backend.rule=Host(`aidio.now`) && PathPrefix(`/aidio-rag`)"
+      - "traefik.http.routers.aidio-rag-backend.entrypoints=websecure"
+      - "traefik.http.routers.aidio-rag-backend.tls.certresolver=${TRAEFIK_CERTRESOLVER:-leresolver}"
+      - "traefik.http.routers.aidio-rag-backend.priority=100"
+      - "traefik.http.routers.aidio-rag-backend.service=aidio-rag-backend"
+      - "traefik.http.routers.aidio-rag-backend.middlewares=aidio-rag-backend-stripprefix,aidio-rag-backend-headers"
+      - "traefik.http.middlewares.aidio-rag-backend-stripprefix.stripprefix.prefixes=/aidio-rag"
+      - "traefik.http.middlewares.aidio-rag-backend-headers.headers.customrequestheaders.X-Forwarded-Prefix=/aidio-rag"
+      - "traefik.http.services.aidio-rag-backend.loadbalancer.server.port=8090"
+      - "traefik.docker.network=librechat_edge"
+    networks:
+      - default
+      - edge
+
   mongodb:
     container_name: aidio-chat-mongodb
     volumes:
