@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useToastContext } from '@librechat/client';
 import { EToolResources } from 'librechat-data-provider';
 import type { ExtendedFile } from '~/common';
@@ -41,12 +41,21 @@ function FileLifecycleSync({
       if (!current) {
         return currentFiles;
       }
+      const nextType = data.status === 'ready' ? 'text/markdown' : current.type;
+      if (
+        current.progress === 1 &&
+        current.status === data.status &&
+        current.previewError === data.previewError &&
+        current.type === nextType
+      ) {
+        return currentFiles;
+      }
       updatedFiles.set(fileKey, {
         ...current,
         progress: 1,
         status: data.status,
         previewError: data.previewError,
-        type: data.status === 'ready' ? 'text/markdown' : current.type,
+        type: nextType,
       });
       return updatedFiles;
     });
@@ -80,8 +89,10 @@ export default function FileRow({
 }) {
   const localize = useLocalize();
   const { showToast } = useToastContext();
-  const files = Array.from(_files?.values() ?? []).filter((file) =>
-    fileFilter ? fileFilter(file) : true,
+  const files = useMemo(
+    () =>
+      Array.from(_files?.values() ?? []).filter((file) => (fileFilter ? fileFilter(file) : true)),
+    [_files, fileFilter],
   );
 
   const { mutateAsync } = useDeleteFilesMutation({
@@ -105,21 +116,10 @@ export default function FileRow({
 
   useEffect(() => {
     if (!setFilesLoading) return;
-    if (files.length === 0) {
-      setFilesLoading(false);
-      return;
-    }
-
-    if (files.some((file) => file.progress < 1 || file.status === 'pending')) {
-      setFilesLoading(true);
-      return;
-    }
-
-    if (files.every((file) => file.progress === 1 && file.status !== 'pending')) {
-      setFilesLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files]);
+    const isLoading =
+      files.length > 0 && files.some((file) => file.progress < 1 || file.status === 'pending');
+    setFilesLoading((current) => (current === isLoading ? current : isLoading));
+  }, [files, setFilesLoading]);
 
   if (files.length === 0) {
     return null;
