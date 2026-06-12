@@ -197,6 +197,7 @@ function queryGraphDocument(document, query, requestedCount) {
         metadata: {
           file_id: document.fileId,
           source: document.filename,
+          chunk_index: chunk.index,
           graph_entities: chunk.entities,
           retrieval: 'graphrag',
         },
@@ -263,6 +264,26 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', files: countAllUserDocuments() });
 });
 
+app.get('/documents', (req, res) => {
+  const userId = getRequestUserId(req, res);
+  if (!userId) {
+    return;
+  }
+
+  const store = loadStore(userId);
+  const documents = Object.values(store.files ?? {})
+    .filter((document) => docOwnedByUser(document, userId))
+    .map((document) => ({
+      file_id: document.fileId,
+      filename: document.filename,
+      entity_id: document.entityId ?? null,
+      updated_at: document.updatedAt,
+      chunk_count: document.chunks?.length ?? 0,
+    }));
+
+  res.json({ documents });
+});
+
 app.post('/ingest-text', (req, res) => {
   const userId = getRequestUserId(req, res);
   if (!userId) {
@@ -294,29 +315,46 @@ app.post('/query', (req, res) => {
   }
 
   const { file_id: fileId, query, k = 5, entity_id: entityId } = req.body ?? {};
-  if (!fileId || !query) {
-    res.status(400).json({ error: 'file_id and query are required' });
+  if (!query) {
+    res.status(400).json({ error: 'query is required' });
     return;
   }
 
   const store = loadStore(userId);
-  const document = store.files[fileId];
-  if (!document) {
-    res.json([]);
+  if (fileId) {
+    const document = store.files[fileId];
+    if (!document) {
+      res.json([]);
+      return;
+    }
+
+    if (!docOwnedByUser(document, userId)) {
+      res.json([]);
+      return;
+    }
+
+    if (document.entityId != null && entityId != null && document.entityId !== entityId) {
+      res.json([]);
+      return;
+    }
+
+    res.json(queryGraphDocument(document, query, Number.parseInt(String(k), 10) || 5));
     return;
   }
 
-  if (!docOwnedByUser(document, userId)) {
-    res.json([]);
-    return;
-  }
+  const requestedCount = Number.parseInt(String(k), 10) || 5;
+  const results = Object.values(store.files ?? {})
+    .filter((document) => docOwnedByUser(document, userId))
+    .filter((document) => document.entityId == null || entityId == null || document.entityId === entityId)
+    .flatMap((document) => queryGraphDocument(document, query, requestedCount))
+    .sort((left, right) => {
+      const leftDistance = typeof left?.[1] === 'number' ? left[1] : 1;
+      const rightDistance = typeof right?.[1] === 'number' ? right[1] : 1;
+      return leftDistance - rightDistance;
+    })
+    .slice(0, requestedCount);
 
-  if (document.entityId != null && entityId != null && document.entityId !== entityId) {
-    res.json([]);
-    return;
-  }
-
-  res.json(queryGraphDocument(document, query, Number.parseInt(String(k), 10) || 5));
+  res.json(results);
 });
 
 app.delete('/documents', (req, res) => {

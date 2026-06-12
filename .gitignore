@@ -184,5 +184,5 @@ CLAUDE.md
 *.env
 
 # GraphRAG
-./graphrag_data/
-./graphrag_data_aidio/
+/graphrag_data/
+/graphrag_data_aidio/
