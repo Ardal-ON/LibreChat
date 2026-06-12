@@ -33,6 +33,7 @@ services:
       - ./images:/app/client/public/images
       - ./uploads:/app/uploads
       - ./logs:/app/logs
+      - ./logs:/app/api/logs
       - ./api/graphrag:/app/api/graphrag:ro
       - ./graphrag_data:/app/api/data/graphrag
 
@@ -41,6 +42,8 @@ services:
     container_name: graphrag_api
     command: node /app/api/graphrag/server.js
     restart: always
+    ports:
+      - "${GRAPH_RAG_PORT:-8001}:${GRAPH_RAG_PORT:-8001}"
     env_file:
       - .env
     environment:
