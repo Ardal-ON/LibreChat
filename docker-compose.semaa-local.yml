@@ -13,6 +13,7 @@ services:
     env_file:
       - .env
     environment:
+      - SEMAA_AGENT_BASE_URL=http://semaa-agent:3333/v1
       - GRAPH_RAG_PORT=${GRAPH_RAG_PORT:-8001}
       - GRAPH_RAG_API_URL=http://graphrag_api:${GRAPH_RAG_PORT:-8001}
       - JWT_SECRET=${JWT_SECRET}
@@ -53,3 +54,32 @@ services:
     volumes:
       - ./api/graphrag:/app/api/graphrag:ro
       - ./graphrag_data:/app/api/data/graphrag
+
+  semaa-agent:
+    build:
+      context: ../../semaa-agent
+      dockerfile: Dockerfile
+    container_name: semaa-agent
+    restart: always
+    depends_on:
+      - mongodb
+      - graphrag_api
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=3333
+      - MONGODB_URI=${SEMAA_MONGODB_URI:-mongodb://mongodb:27017}
+      - MONGODB_DB_NAME=${SEMAA_MONGODB_DB_NAME:-SemaaAgent}
+      - GRAPH_RAG_API_URL=http://graphrag_api:${GRAPH_RAG_PORT:-8001}
+      - GRAPH_RAG_JWT_SECRET=${JWT_SECRET}
+      - SEMAA_AGENT_SHARED_SECRET=${SEMAA_AGENT_SHARED_SECRET}
+      - SEMAA_AGENT_API_KEY=${SEMAA_AGENT_API_KEY}
+      - SEMAA_AGENT_ADMIN_API_KEY=${SEMAA_AGENT_ADMIN_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
+      - WEB_SEARCH_PROVIDER=${WEB_SEARCH_PROVIDER:-openai}
+      - CITATION_LINK_BASE_URL=${SEMAA_CITATION_LINK_BASE_URL:-http://localhost:3333}
+    ports:
+      - "${SEMAA_AGENT_PORT:-3333}:3333"
