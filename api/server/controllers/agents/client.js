@@ -37,6 +37,11 @@ const {
   buildAgentScopedContext,
   buildSkillPrimeContentParts,
   buildInitialToolSessions,
+  isSemaaAgentEndpoint,
+  isSemaaAgentRoute,
+  resolveSemaaEndpoint,
+  streamSemaaAgentCompletion,
+  generateSemaaAgentTitle,
 } = require('@librechat/api');
 const {
   Callback,
@@ -740,6 +745,83 @@ class AgentClient extends BaseClient {
     }
   }
 
+  /**
+   * Streams a Semaa agent run through the native LibreChat step-event bridge.
+   * @param {object} params
+   * @param {ChatCompletionMessageParam[]} params.payload
+   * @param {AbortController} params.abortController
+   */
+  resolveSemaaEndpoint() {
+    return resolveSemaaEndpoint(this.options.endpoint, this.options.agent?.endpoint);
+  }
+
+  async resolveSemaaAttachedFiles() {
+    const attachments = Array.isArray(this.options.attachments)
+      ? this.options.attachments
+      : await Promise.resolve(this.options.attachments).then((value) =>
+          Array.isArray(value) ? value : [],
+        );
+
+    return Promise.all(
+      attachments
+        .filter((file) => file?.file_id)
+        .map(async (file) => {
+          let record = file;
+          let text = typeof file.text === 'string' ? file.text : '';
+          if (!text.trim()) {
+            const refreshed = await db.findFileById(file.file_id);
+            if (refreshed) {
+              record = { ...file, ...refreshed };
+              text = typeof refreshed.text === 'string' ? refreshed.text : '';
+            }
+          }
+          return {
+            file_id: record.file_id,
+            filename: record.filename ?? file.filename ?? 'attachment',
+            text,
+            status: record.status ?? file.status,
+          };
+        }),
+    );
+  }
+
+  async semaaAgentChatCompletion({ payload, abortController }) {
+    const attachedFiles = await this.resolveSemaaAttachedFiles();
+
+    await streamSemaaAgentCompletion({
+      req: this.options.req,
+      res: this.options.res,
+      endpoint: this.resolveSemaaEndpoint(),
+      model: this.model,
+      messages: this.toSemaaChatMessages(payload),
+      attachedFiles,
+      responseMessageId: this.responseMessageId,
+      conversationId: this.conversationId,
+      aggregateContent: this.options.aggregateContent,
+      abortSignal: abortController?.signal,
+    });
+  }
+
+  /**
+   * @param {ChatCompletionMessageParam[]} payload
+   * @returns {Array<{ role: 'system' | 'user' | 'assistant'; content: string }>}
+   */
+  toSemaaChatMessages(payload) {
+    if (!Array.isArray(payload)) {
+      return [];
+    }
+
+    return payload
+      .filter(
+        (message) =>
+          message?.role === 'user' || message?.role === 'assistant' || message?.role === 'system',
+      )
+      .map((message) => ({
+        role: message.role,
+        content: normalizeSemaaMessageContent(message.content),
+      }));
+  }
+
   /** @type {sendCompletion} */
   async sendCompletion(payload, opts = {}) {
     await this.chatCompletion({
@@ -832,6 +914,11 @@ class AgentClient extends BaseClient {
     try {
       if (!abortController) {
         abortController = new AbortController();
+      }
+
+      if (isSemaaAgentRoute(this.options.endpoint, this.options.agent?.endpoint)) {
+        await this.semaaAgentChatCompletion({ payload, abortController });
+        return;
       }
 
       /** @type {AppConfig['endpoints']['agents']} */
@@ -1183,11 +1270,34 @@ class AgentClient extends BaseClient {
    * @param {string} params.conversationId
    */
   async titleConvo({ text, abortController }) {
+    const { req, agent } = this.options;
+
+    if (isSemaaAgentRoute(this.options.endpoint, agent.endpoint)) {
+      try {
+        const responseText = (this.contentParts ?? [])
+          .map((part) => (part?.type === 'text' ? part.text : ''))
+          .filter(Boolean)
+          .join('\n');
+        const title = await generateSemaaAgentTitle({
+          req,
+          endpoint: this.resolveSemaaEndpoint(),
+          model: agent.model || agent.model_parameters?.model || 'semaa',
+          text,
+          responseText,
+          abortSignal: abortController?.signal,
+        });
+        return sanitizeTitle(title);
+      } catch (error) {
+        logger.error('[api/server/controllers/agents/client.js #titleConvo] Semaa title error', error);
+        return;
+      }
+    }
+
     if (!this.run) {
       throw new Error('Run not initialized');
     }
+
     const { handleLLMEnd, collected: collectedMetadata } = createMetadataAggregator();
-    const { req, agent } = this.options;
 
     if (req?.body?.isTemporary) {
       logger.debug(
@@ -1454,6 +1564,31 @@ class AgentClient extends BaseClient {
     }
     return 'o200k_base';
   }
+}
+
+/**
+ * @param {string | Array<{ type?: string; text?: string }> | null | undefined} content
+ * @returns {string}
+ */
+function normalizeSemaaMessageContent(content) {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return '';
+  }
+  return content
+    .map((part) => {
+      if (typeof part === 'string') {
+        return part;
+      }
+      if (part?.type === 'text' && typeof part.text === 'string') {
+        return part.text;
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
 }
 
 module.exports = AgentClient;
