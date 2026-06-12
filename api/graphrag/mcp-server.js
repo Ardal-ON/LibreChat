@@ -761,7 +761,7 @@ function ingestDocument({
 
   if (!normalized || placeholderPattern.test(normalized) || looksSummarizedAttachment) {
     throw new Error(
-      'Invalid text payload for ingest_document. Please provide full original document text or use graphrag_ingest_uploaded_file.',
+      'Invalid text payload for ingest_document. Please provide full original document text or use graphrag_ingest_uploaded_file to load the parsed text artifact.',
     );
   }
 
@@ -791,6 +791,52 @@ function ingestDocument({
 function isSupportedTextExtension(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   return ext === '.txt' || ext === '.md';
+}
+
+function markdownFilename(filename) {
+  if (typeof filename !== 'string' || filename.trim().length === 0) {
+    return null;
+  }
+  const parsed = path.parse(filename.trim());
+  return `${parsed.name || filename.trim()}.md`;
+}
+
+function getDbFilenameCandidates(record) {
+  const candidates = new Set();
+  const addName = (value) => {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      return;
+    }
+    const trimmed = value.trim();
+    candidates.add(trimmed);
+    candidates.add(path.basename(trimmed));
+    const markdownName = markdownFilename(trimmed);
+    if (markdownName) {
+      candidates.add(markdownName);
+    }
+  };
+
+  addName(record.basename);
+  addName(record.originalFilename);
+  return candidates;
+}
+
+function uploadedFileMatches({ fileRecord, filename, fileId }) {
+  if (fileId && fileRecord.file_id === fileId) {
+    return true;
+  }
+
+  const normalizedName = filename.trim();
+  const base = fileRecord.basename;
+  if (!base) {
+    return false;
+  }
+
+  if (fileRecord.storage === 'fs') {
+    return base === normalizedName || base.endsWith(`__${normalizedName}`);
+  }
+
+  return getDbFilenameCandidates(fileRecord).has(normalizedName);
 }
 
 function walkFilesRecursive(dir, collector) {
@@ -824,20 +870,27 @@ async function getDbBackedTextFiles(userId) {
       .find(
         {
           user: buildMongoUserFilter(userId),
-          source: 'text',
-          filename: { $regex: /\.(txt|md)$/i },
           text: { $type: 'string', $ne: '' },
+          $or: [
+            { source: { $in: ['text', 'custom_ocr'] } },
+            { type: { $in: ['text/plain', 'text/markdown'] } },
+            { filename: { $regex: /\.(txt|md)$/i } },
+            { 'metadata.ocr.provider': 'custom_ocr' },
+          ],
         },
         {
           projection: {
             file_id: 1,
             filename: 1,
             filepath: 1,
+            source: 1,
+            type: 1,
             bytes: 1,
             user: 1,
             createdAt: 1,
             updatedAt: 1,
             text: 1,
+            metadata: 1,
           },
         },
       )
@@ -849,6 +902,7 @@ async function getDbBackedTextFiles(userId) {
         storage: 'db',
         file_id: record.file_id,
         basename: record.filename,
+        originalFilename: record.metadata?.ocr?.originalFilename,
         path: record.filepath || `db://${record.file_id}`,
         mtimeMs: new Date(record.updatedAt || record.createdAt || 0).getTime() || 0,
         size:
@@ -860,6 +914,59 @@ async function getDbBackedTextFiles(userId) {
       }));
   } catch (error) {
     console.error('[graphrag-mcp] Failed to list DB-backed text uploads:', error.message);
+    return [];
+  }
+}
+
+async function getPendingDbBackedOCRFiles(userId) {
+  if (!process.env.MONGO_URI) {
+    return [];
+  }
+
+  try {
+    const { connectDb } = require('../db/connect');
+    const mongoose = await connectDb();
+    const collection = mongoose?.connection?.db?.collection('files');
+    if (!collection) {
+      return [];
+    }
+
+    const records = await collection
+      .find(
+        {
+          user: buildMongoUserFilter(userId),
+          status: 'pending',
+          'metadata.ocr.provider': 'custom_ocr',
+        },
+        {
+          projection: {
+            file_id: 1,
+            filename: 1,
+            filepath: 1,
+            user: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            metadata: 1,
+          },
+        },
+      )
+      .toArray();
+
+    return records
+      .filter((record) => isDbRecordOwnedByUser(record, userId))
+      .map((record) => ({
+        storage: 'db',
+        pending: true,
+        file_id: record.file_id,
+        basename: record.filename,
+        originalFilename: record.metadata?.ocr?.originalFilename,
+        path: record.filepath || `db://${record.file_id}`,
+        mtimeMs: new Date(record.updatedAt || record.createdAt || 0).getTime() || 0,
+        size: 0,
+        user_id: userId,
+      }));
+  } catch (error) {
+    console.error('[graphrag-mcp] Failed to list pending DB-backed OCR uploads:', error.message);
     return [];
   }
 }
@@ -889,23 +996,15 @@ async function getUploadedTextFiles(userId) {
   return dedupeUploadedFiles(files).sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
-async function getLatestUploadedFileByNameIfExists(filename, userId) {
+async function getLatestTextArtifactByNameIfExists(filename, userId) {
   if (typeof filename !== 'string' || filename.trim().length === 0) {
     return null;
   }
 
   const allFiles = await getUploadedTextFiles(userId);
-  const normalizedName = filename.trim();
-  const candidates = allFiles.filter((fileRecord) => {
-    const base = fileRecord.basename;
-    if (!base) {
-      return false;
-    }
-    if (fileRecord.storage === 'fs') {
-      return base === normalizedName || base.endsWith(`__${normalizedName}`);
-    }
-    return base === normalizedName;
-  });
+  const candidates = allFiles.filter((fileRecord) =>
+    uploadedFileMatches({ fileRecord, filename }),
+  );
 
   if (candidates.length === 0) {
     return null;
@@ -915,29 +1014,30 @@ async function getLatestUploadedFileByNameIfExists(filename, userId) {
   return candidates[0];
 }
 
-async function findUploadedFileByName(filename, userId) {
+async function findTextArtifactByName(filename, userId, fileId) {
   const allFiles = await getUploadedTextFiles(userId);
 
-  const normalizedName = filename.trim();
-  const candidates = allFiles.filter((fileRecord) => {
-    const base = fileRecord.basename;
-    if (!base) {
-      return false;
-    }
-    if (fileRecord.storage === 'fs') {
-      // LibreChat often stores files with UUID__original-name pattern.
-      return base === normalizedName || base.endsWith(`__${normalizedName}`);
-    }
-    return base === normalizedName;
-  });
+  const candidates = allFiles.filter((fileRecord) =>
+    uploadedFileMatches({ fileRecord, filename, fileId }),
+  );
 
   if (candidates.length === 0) {
+    const pendingMatches = (await getPendingDbBackedOCRFiles(userId)).filter((fileRecord) =>
+      uploadedFileMatches({ fileRecord, filename, fileId }),
+    );
+    if (pendingMatches.length > 0) {
+      const pending = pendingMatches[0];
+      throw new Error(
+        `Parsed text artifact is still being produced by custom OCR: ${pending.basename}. Try again after OCR completes.`,
+      );
+    }
+
     const available = allFiles
       .slice(0, 20)
       .map((f) => `${f.basename}${f.storage === 'db' ? ' [db]' : ''}`)
       .join(', ');
     throw new Error(
-      `No uploaded .md/.txt file found for filename: ${filename}. Available uploaded text files: ${available || '(none)'}`,
+      `No parsed or uploaded .md/.txt text artifact found for filename: ${filename}. Available parsed/uploaded text artifacts: ${available || '(none)'}`,
     );
   }
 
@@ -946,7 +1046,7 @@ async function findUploadedFileByName(filename, userId) {
 }
 
 async function ingestUploadedFile({ user_id, filename, file_id, entity_id }) {
-  const found = await findUploadedFileByName(filename, user_id);
+  const found = await findTextArtifactByName(filename, user_id, file_id);
 
   let text;
   let derivedFileId;
@@ -1484,7 +1584,7 @@ const tools = [
   {
     name: 'graphrag_ingest_document',
     description:
-      'Ingest or update a document in GraphRAG knowledge store. Use this only when full, original document text is explicitly provided. For uploaded files, prefer graphrag_ingest_uploaded_file.',
+      'Ingest or update a document in GraphRAG knowledge store. Use this only when full, original document text is explicitly provided. For uploaded or OCR-parsed files, prefer graphrag_ingest_uploaded_file.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1590,14 +1690,14 @@ const tools = [
   {
     name: 'graphrag_ingest_uploaded_file',
     description:
-      'Ingest an uploaded .md/.txt file directly from LibreChat uploads directory, so users do not need to paste full text.',
+      'Ingest a parsed LibreChat text artifact or uploaded .md/.txt file, so users do not need to paste full text. Prefer this after Docling/custom OCR completes.',
     inputSchema: {
       type: 'object',
       properties: {
         filename: {
           type: 'string',
           description:
-            'Original uploaded filename (for example report.md). The server auto-resolves UUID-prefixed storage names.',
+            'Parsed markdown filename or original uploaded filename (for example report.md or report.pdf). The server resolves DB text artifacts and UUID-prefixed storage names.',
         },
         file_id: {
           type: 'string',
@@ -1611,7 +1711,7 @@ const tools = [
   {
     name: 'graphrag_list_uploaded_text_files',
     description:
-      'List currently available uploaded .md/.txt files under LibreChat uploads directory for troubleshooting ingest_uploaded_file.',
+      'List currently available parsed DB text artifacts and uploaded .md/.txt files for troubleshooting ingest_uploaded_file.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -1682,7 +1782,7 @@ async function main() {
       try {
         const normalizedText = typeof args.text === 'string' ? args.text.trim() : '';
         const incomingBytes = Buffer.byteLength(normalizedText, 'utf8');
-        const uploadedCandidate = await getLatestUploadedFileByNameIfExists(args.filename, userId);
+        const uploadedCandidate = await getLatestTextArtifactByNameIfExists(args.filename, userId);
         if (
           uploadedCandidate &&
           args.allow_replace_with_shorter !== true &&
@@ -1690,7 +1790,7 @@ async function main() {
           uploadedCandidate.size - incomingBytes >= SHORT_INGEST_DELTA_GUARD_BYTES
         ) {
           throw new Error(
-            `Incoming text appears shorter than latest uploaded file for ${args.filename} (incoming_chars=${incomingBytes}, uploaded_chars=${uploadedCandidate.size}). Use graphrag_ingest_uploaded_file to ingest the complete uploaded document, or set allow_replace_with_shorter=true if intentional.`,
+            `Incoming text appears shorter than latest parsed/uploaded text artifact for ${args.filename} (incoming_chars=${incomingBytes}, artifact_chars=${uploadedCandidate.size}). Use graphrag_ingest_uploaded_file to ingest the complete parsed artifact, or set allow_replace_with_shorter=true if intentional.`,
           );
         }
 
