@@ -34,6 +34,7 @@ import type { AppConfig, IUser } from '@librechat/data-schemas';
 import type * as t from '~/types';
 import { getProviderConfig } from '~/endpoints/config/providers';
 import { resolveHeaders, createSafeUser } from '~/utils/env';
+import { createSemaaIdentityHeaders } from '~/utils/semaaIdentity';
 import { getOpenAIConfig } from '~/endpoints/openai/config';
 import { isUserProvided } from '~/utils/common';
 
@@ -446,14 +447,20 @@ function resolveSummarizationProvider(
      * `getOpenAIConfig`, matching the agent main flow where `resolveHeaders`
      * runs on `llmConfig.configuration.defaultHeaders`.
      */
-    const resolvedHeaders =
-      customEndpointConfig.headers != null
+    const resolvedHeaders = {
+      ...(customEndpointConfig.headers != null
         ? resolveHeaders({
             headers: customEndpointConfig.headers as Record<string, string>,
             user: createSafeUser(headerContext.user),
             body: headerContext.requestBody,
           })
-        : undefined;
+        : {}),
+      ...createSemaaIdentityHeaders({
+        endpoint: rawProvider,
+        baseURL,
+        user: headerContext.user,
+      }),
+    };
     /**
      * Run the endpoint config through `getOpenAIConfig` so summarization
      * inherits the same `headers`, `defaultQuery`, `addParams`/`dropParams`,
@@ -468,7 +475,7 @@ function resolveSummarizationProvider(
       {
         reverseProxyUrl: baseURL,
         proxy: process.env.PROXY ?? null,
-        headers: resolvedHeaders,
+        headers: Object.keys(resolvedHeaders).length > 0 ? resolvedHeaders : undefined,
         addParams: customEndpointConfig.addParams,
         dropParams: customEndpointConfig.dropParams,
         customParams: customEndpointConfig.customParams,

@@ -9,6 +9,7 @@ import type { AppConfig } from '@librechat/data-schemas';
 import type { BaseInitializeParams, InitializeResultBase, EndpointTokenConfig } from '~/types';
 import { getOpenAIConfig } from '~/endpoints/openai/config';
 import { isUserProvided, checkUserKeyExpiry } from '~/utils';
+import { createSemaaIdentityHeaders } from '~/utils/semaaIdentity';
 import { getCustomEndpointConfig } from '~/app/config';
 import { fetchModels } from '~/endpoints/models';
 import { validateEndpointURL } from '~/auth';
@@ -159,6 +160,10 @@ export async function initializeCustom({
   }
 
   const customOptions = buildCustomOptions(endpointConfig, appConfig, endpointTokenConfig);
+  customOptions.headers = {
+    ...((customOptions.headers as Record<string, string> | undefined) ?? {}),
+    ...createSemaaIdentityHeaders({ endpoint, baseURL, user: req.user }),
+  };
 
   const clientOptions: Record<string, unknown> = {
     reverseProxyUrl: baseURL ?? null,
