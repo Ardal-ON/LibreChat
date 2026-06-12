@@ -28,3 +28,4 @@ export * from './tokenMap';
 export * from './url';
 export * from './message';
 export * from './tracing';
+export * from './semaaIdentity';
