@@ -29,9 +29,13 @@ jest.mock('~/hooks/useScrollToRef', () => ({
   },
 }));
 
-jest.mock('../messageLayout', () => ({
-  reconcileMessageContentLayout: jest.fn(),
-}));
+jest.mock('../messageLayout', () => {
+  const actual = jest.requireActual('../messageLayout');
+  return {
+    ...actual,
+    reconcileMessageContentLayout: jest.fn(),
+  };
+});
 
 import useMessageScrolling from '../useMessageScrolling';
 import { reconcileMessageContentLayout } from '../messageLayout';
@@ -269,7 +273,7 @@ describe('useMessageScrolling resize reconciliation', () => {
     expect(mockScrollToBottom).not.toHaveBeenCalled();
   });
 
-  it('does not clamp to rendered content bottom during general resize reconciliation', () => {
+  it('clamps to rendered content bottom during general resize reconciliation', () => {
     renderScrolling({ contextOverrides: { abortScroll: true } });
 
     const scrollable = screen.getByTestId('scrollable');
@@ -284,7 +288,7 @@ describe('useMessageScrolling resize reconciliation', () => {
       MockResizeObserver.last()?.trigger();
     });
 
-    expect(scrollable.scrollTop).toBe(700);
+    expect(scrollable.scrollTop).toBe(300);
     expect(mockScrollToBottom).not.toHaveBeenCalled();
   });
 });

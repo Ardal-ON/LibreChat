@@ -1,9 +1,9 @@
-import { memo, useMemo, useState, useCallback, useRef, useId } from 'react';
+import { memo, useMemo, useState, useCallback, useRef, useId, useEffect } from 'react';
 import { useAtomValue } from 'jotai';
 import { ContentTypes } from 'librechat-data-provider';
-import type { MouseEvent, FocusEvent } from 'react';
+import type { MouseEvent, FocusEvent, TransitionEvent } from 'react';
 import { ThinkingContent, ThinkingButton, FloatingThinkingBar } from './Thinking';
-import { useLocalize, useExpandCollapse } from '~/hooks';
+import { useLocalize, useExpandCollapse, scheduleMessageContentLayoutReconcile } from '~/hooks';
 import { showThinkingAtom } from '~/store/showThinking';
 import { useMessageContext } from '~/Providers';
 import { cn } from '~/utils';
@@ -42,6 +42,8 @@ const Reasoning = memo(({ reasoning, isLast }: ReasoningProps) => {
   const [isExpanded, setIsExpanded] = useState(showThinking);
   const [isBarVisible, setIsBarVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const cancelLayoutReconcileRef = useRef<(() => void) | null>(null);
+  const previousIsExpandedRef = useRef(isExpanded);
   const { style: expandStyle, ref: expandRef } = useExpandCollapse(isExpanded);
   const { isSubmitting, isLatestMessage, nextType } = useMessageContext();
 
@@ -52,6 +54,43 @@ const Reasoning = memo(({ reasoning, isLast }: ReasoningProps) => {
       .replace(/\s*<\/think>$/, '')
       .trim();
   }, [reasoning]);
+
+  const notifyLayoutChange = useCallback(() => {
+    cancelLayoutReconcileRef.current?.();
+    cancelLayoutReconcileRef.current = scheduleMessageContentLayoutReconcile(containerRef.current);
+  }, []);
+
+  useEffect(
+    () => () => {
+      cancelLayoutReconcileRef.current?.();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    notifyLayoutChange();
+  }, [reasoningText, notifyLayoutChange]);
+
+  useEffect(() => {
+    const wasExpanded = previousIsExpandedRef.current;
+    previousIsExpandedRef.current = isExpanded;
+    if (wasExpanded && !isExpanded) {
+      notifyLayoutChange();
+    }
+  }, [isExpanded, notifyLayoutChange]);
+
+  const handleTransitionEnd = useCallback(
+    (event: TransitionEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) {
+        return;
+      }
+      if (isExpanded) {
+        return;
+      }
+      notifyLayoutChange();
+    },
+    [isExpanded, notifyLayoutChange],
+  );
 
   const handleClick = useCallback((e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -116,6 +155,7 @@ const Reasoning = memo(({ reasoning, isLast }: ReasoningProps) => {
           aria-hidden={!isExpanded || undefined}
           className={cn(nextType !== ContentTypes.THINK && isExpanded && 'mb-4')}
           style={expandStyle}
+          onTransitionEnd={handleTransitionEnd}
         >
           <div className="relative overflow-hidden" ref={expandRef}>
             <ThinkingContent>{reasoningText}</ThinkingContent>
